@@ -1,3 +1,5 @@
-# Vulcan Electronic Medicinal Product Information (ePI) Project
-This DRAFT Implementation Guide is an extention of the Gravitate Health, Vulcan, and BR&R effort to facilitate implementaton and understanding of ePI. The scope of this IG is meant to facilitate ePI implementation in ASEAN markets
-https://build.fhir.org/ig/cander2/aseanepi/
+# Vulcan ePI for Asia Partnership Conference of Pharmaceutical Associations (APAC)
+This DRAFT Implementation Guide is meant to facilitate implementation and understanding of ePI for the members of the Asia Partnership Conference of Pharmaceutical Associations (APAC).
+
+This IG is an extention of the Vulcan Global Core ePI facilitate implementaton and understanding of ePI.
+https://build.fhir.org/ig/scc88/aseanepi/
