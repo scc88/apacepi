@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAXLOVID Interaction &amp; Contraindication Checker · Singapore ePI</title>
+<meta name="description" content="Interactive clinical decision-support mockup: screen a patient's medication list against the PAXLOVID (nirmatrelvir/ritonavir) Singapore ePI for contraindications and drug interactions.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#0d7d7a; --accent-ink:#0a5b59; --accent-tint:#e2f1f0;
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc;
+    --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    font-size:15px; line-height:1.5; -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:960px; margin:0 auto; padding:0 16px}
+
+  /* Header */
+  header.bar{
+    background:var(--surface); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+  }
+  .bar-in{
+    max-width:960px; margin:0 auto; padding:9px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .brand{font-family:var(--mono); font-size:13px; font-weight:600; letter-spacing:.02em}
+  .brand b{color:var(--accent-ink)}
+  .tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    background:var(--accent-tint); color:var(--accent-ink); border:1px solid #bfe0de;
+    padding:2px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .bar-right{margin-left:auto}
+  a.epi-link{
+    font-family:var(--mono); font-size:12px; color:var(--accent-ink); text-decoration:none;
+    border:1px solid var(--line); padding:5px 10px; border-radius:8px; white-space:nowrap;
+    background:var(--surface);
+  }
+  a.epi-link:hover{background:var(--surface-2)}
+
+  /* Hero */
+  .hero{padding:22px 0 6px}
+  .hero h1{
+    font-family:var(--serif); font-weight:600; font-size:26px; line-height:1.2; margin:0 0 6px;
+  }
+  .hero p{margin:0; color:var(--muted); max-width:60ch}
+  .kicker{
+    font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent-ink); margin:0 0 6px;
+  }
+
+  section.card{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:16px; margin:14px 0;
+  }
+  .lbl{
+    font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--faint); display:block; margin:0 0 8px;
+  }
+
+  /* Search combobox */
+  .search-wrap{position:relative}
+  .search-row{display:flex; gap:8px; flex-wrap:wrap}
+  .cbx{position:relative; flex:1 1 240px; min-width:0}
+  input#drugSearch{
+    width:100%; font-family:var(--sans); font-size:16px; padding:11px 12px 11px 36px;
+    border:1.5px solid var(--line); border-radius:9px; background:var(--surface); color:var(--ink);
+  }
+  input#drugSearch:focus{outline:none; border-color:var(--accent)}
+  .cbx svg.mag{
+    position:absolute; left:11px; top:50%; transform:translateY(-50%);
+    width:16px; height:16px; color:var(--faint); pointer-events:none;
+  }
+  button.add-btn{
+    font-family:var(--sans); font-size:15px; font-weight:600; color:#fff; background:var(--accent);
+    border:1.5px solid var(--accent); border-radius:9px; padding:0 16px; cursor:pointer;
+    flex:0 0 auto;
+  }
+  button.add-btn:hover{background:var(--accent-ink); border-color:var(--accent-ink)}
+  button.add-btn:disabled{opacity:.45; cursor:not-allowed}
+
+  ul#drugList{
+    list-style:none; margin:6px 0 0; padding:4px; position:absolute; z-index:15;
+    left:0; right:0; top:calc(100% + 2px);
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    box-shadow:0 8px 24px rgba(20,32,31,.12); max-height:280px; overflow-y:auto;
+  }
+  ul#drugList[hidden]{display:none}
+  li.opt{
+    padding:8px 10px; border-radius:7px; cursor:pointer; display:flex; align-items:center; gap:10px;
+  }
+  li.opt[aria-selected="true"], li.opt:hover{background:var(--surface-2)}
+  li.opt .dot{width:9px; height:9px; border-radius:50%; flex:0 0 auto}
+  li.opt .nm{font-weight:600; text-transform:capitalize}
+  li.opt .use{color:var(--muted); font-size:13px; margin-left:auto; text-align:right}
+  li.opt mark{background:#fff6cf; color:inherit; border-radius:2px}
+  li.none{padding:10px; color:var(--muted); font-size:14px}
+  .dot.crit{background:var(--crit)} .dot.warn{background:var(--warn)} .dot.ok{background:var(--ok)}
+
+  /* Quick add */
+  .quick{margin-top:12px}
+  .quick .chips{display:flex; gap:6px; flex-wrap:wrap; margin-top:6px}
+  button.qadd{
+    font-family:var(--mono); font-size:12.5px; background:var(--surface-2); color:var(--ink);
+    border:1px solid var(--line); border-radius:999px; padding:5px 11px; cursor:pointer;
+    text-transform:capitalize;
+  }
+  button.qadd:hover{background:var(--accent-tint); border-color:#bfe0de; color:var(--accent-ink)}
+  button.qadd:disabled{opacity:.4; cursor:not-allowed}
+  button.qadd::before{content:"+ "; color:var(--faint)}
+
+  /* Selected chips */
+  #selBar{display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap; min-height:20px}
+  .chip{
+    display:inline-flex; align-items:center; gap:7px; font-size:14px; font-weight:600;
+    background:var(--surface-2); border:1px solid var(--line); border-radius:999px;
+    padding:5px 6px 5px 12px; text-transform:capitalize;
+  }
+  .chip .cdot{width:8px;height:8px;border-radius:50%}
+  .chip.crit{background:var(--crit-tint); border-color:#f0c7c1}
+  .chip.warn{background:var(--warn-tint); border-color:#ecd9a8}
+  .chip.ok{background:var(--ok-tint); border-color:#c3e2cf}
+  .chip button{
+    border:none; background:transparent; cursor:pointer; color:var(--muted); font-size:16px;
+    line-height:1; width:22px; height:22px; border-radius:50%; display:grid; place-items:center;
+  }
+  .chip button:hover{background:rgba(20,32,31,.10); color:var(--ink)}
+  .empty-note{color:var(--faint); font-style:italic; font-size:14px}
+  .clear-all{
+    margin-left:auto; font-family:var(--mono); font-size:12px; background:none; border:none;
+    color:var(--muted); cursor:pointer; text-decoration:underline; padding:4px;
+  }
+  .clear-all:hover{color:var(--crit)}
+
+  /* Summary banner */
+  .banner{
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    border-radius:12px; padding:14px 16px; border:1px solid var(--line); margin-bottom:14px;
+  }
+  .banner.crit{background:var(--crit-tint); border-color:#f0c7c1}
+  .banner.warn{background:var(--warn-tint); border-color:#ecd9a8}
+  .banner.ok{background:var(--ok-tint); border-color:#c3e2cf}
+  .banner.idle{background:var(--surface-2)}
+  .banner .verdict{font-family:var(--serif); font-size:20px; font-weight:600; display:flex; align-items:center; gap:9px}
+  .banner.crit .verdict{color:#8f2116}
+  .banner.warn .verdict{color:#875612}
+  .banner.ok .verdict{color:#215c3f}
+  .counts{display:flex; gap:8px; flex-wrap:wrap; margin-left:auto}
+  .count{
+    font-family:var(--mono); font-size:12.5px; padding:4px 10px; border-radius:999px;
+    border:1px solid transparent; white-space:nowrap;
+  }
+  .count.crit{background:#fff; color:var(--crit); border-color:#f0c7c1}
+  .count.warn{background:#fff; color:var(--warn); border-color:#ecd9a8}
+  .count.ok{background:#fff; color:var(--ok); border-color:#c3e2cf}
+  .count b{font-weight:700}
+
+  /* Results table */
+  .tbl-scroll{overflow-x:auto; -webkit-overflow-scrolling:touch}
+  table.res{width:100%; border-collapse:collapse; min-width:520px}
+  table.res thead th{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--faint); text-align:left; font-weight:600; padding:6px 12px; border-bottom:1px solid var(--line);
+  }
+  table.res tbody tr{border-bottom:1px solid var(--line)}
+  table.res tbody tr:last-child{border-bottom:none}
+  table.res td{padding:11px 12px; vertical-align:top}
+  td.sev{white-space:nowrap; width:1%}
+  .sev-badge{
+    font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.04em;
+    padding:3px 9px; border-radius:6px; display:inline-flex; align-items:center; gap:6px;
+    text-transform:uppercase;
+  }
+  .sev-badge.crit{background:var(--crit-tint); color:var(--crit)}
+  .sev-badge.warn{background:var(--warn-tint); color:var(--warn)}
+  .sev-badge.ok{background:var(--ok-tint); color:var(--ok)}
+  td.drug{font-weight:600; text-transform:capitalize; white-space:nowrap}
+  td.drug small{display:block; font-weight:400; color:var(--faint); font-size:12px; text-transform:none; font-family:var(--mono)}
+  td.note{color:var(--muted)}
+  .res-empty{padding:26px 12px; text-align:center; color:var(--faint)}
+
+  .legend{display:flex; gap:14px; flex-wrap:wrap; margin-top:10px; font-size:12.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .legend i{width:9px;height:9px;border-radius:50%; display:inline-block}
+
+  footer.disc{
+    color:var(--faint); font-size:12px; line-height:1.5; margin:22px 0 40px; max-width:70ch;
+  }
+  footer.disc strong{color:var(--muted)}
+
+  :focus-visible{outline:2.5px solid var(--accent); outline-offset:2px; border-radius:4px}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+  @media (max-width:520px){
+    .hero h1{font-size:22px}
+    .banner .verdict{font-size:18px}
+    .counts{margin-left:0; width:100%}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none !important; scroll-behavior:auto !important}}
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <div class="bar-in">
+    <span class="brand"><b>PAXLOVID</b> · Singapore ePI</span>
+    <span class="tag">Clinician view</span>
+    <span class="bar-right"><a class="epi-link" href="../sg-epi-pilot.html" target="_top">&#8617; ePI Pilot</a></span>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <p class="kicker">Clinical decision support · demo</p>
+    <h1>Interaction &amp; contraindication checker</h1>
+    <p>Screen a patient's current medicines against the PAXLOVID (nirmatrelvir 150&nbsp;mg / ritonavir 100&nbsp;mg) label. Ritonavir is a potent CYP3A inhibitor — check every co-medication before prescribing a 5-day course.</p>
+  </div>
+
+  <!-- Search / build list -->
+  <section class="card" aria-labelledby="buildLbl">
+    <span class="lbl" id="buildLbl">Add patient's medicines</span>
+    <div class="search-wrap">
+      <div class="search-row">
+        <div class="cbx">
+          <svg class="mag" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="9" cy="9" r="6"/><path d="M14 14l4 4" stroke-linecap="round"/></svg>
+          <input id="drugSearch" type="text" role="combobox"
+                 aria-expanded="false" aria-controls="drugList" aria-autocomplete="list"
+                 aria-label="Search medicines" autocomplete="off" spellcheck="false"
+                 placeholder="Type a medicine, e.g. simvastatin, warfarin, rifampin…">
+          <ul id="drugList" role="listbox" aria-label="Matching medicines" hidden></ul>
+        </div>
+        <button type="button" class="add-btn" id="addBtn" disabled>Add</button>
+      </div>
+    </div>
+
+    <div class="quick">
+      <span class="lbl" style="margin-bottom:4px">Quick add — common examples</span>
+      <div class="chips" id="quickChips"></div>
+    </div>
+  </section>
+
+  <!-- Selected -->
+  <section class="card" aria-labelledby="selLbl">
+    <span class="lbl" id="selLbl">Patient's medication list</span>
+    <div id="selBar" role="list" aria-label="Selected medicines">
+      <span class="empty-note" id="selEmpty">No medicines added yet — search or use quick-add above.</span>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section aria-labelledby="resLbl" aria-live="polite">
+    <span class="sr-only" id="resLbl">Screening results</span>
+
+    <div class="banner idle" id="banner">
+      <span class="verdict" id="verdict">Add medicines to screen against PAXLOVID</span>
+      <div class="counts" id="counts"></div>
+    </div>
+
+    <section class="card" style="padding:0; overflow:hidden">
+      <div class="tbl-scroll">
+        <table class="res">
+          <thead>
+            <tr><th>Severity</th><th>Medicine</th><th>Clinical note — from PAXLOVID ePI</th></tr>
+          </thead>
+          <tbody id="resBody">
+            <tr><td colspan="3" class="res-empty">Results appear here, sorted by severity.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:var(--crit)"></i> Contraindicated (section 4.3)</span>
+      <span><i style="background:var(--warn)"></i> Caution / monitor (section 4.5)</span>
+      <span><i style="background:var(--ok)"></i> No interaction identified</span>
+    </div>
+  </section>
+
+  <footer class="disc">
+    <strong>Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice.</strong>
+    Driven by the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are
+    placeholders to be confirmed with HSA. Data simplified for demonstration.
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Drug index built from the PAXLOVID Singapore ePI data pack ----
+  // tier: crit = contraindicated (do not co-prescribe), warn = caution/monitor, ok = no interaction
+  var DRUGS = [
+    // ---- CONTRAINDICATED (CRITICAL) ----
+    {n:"alfuzosin", use:"enlarged prostate", t:"crit", note:"Contraindicated — raised alfuzosin levels; hypotension risk."},
+    {n:"ranolazine", use:"angina", t:"crit", note:"Contraindicated — increased ranolazine exposure."},
+    {n:"amiodarone", use:"heart rhythm", t:"crit", note:"Contraindicated — antiarrhythmic; serious arrhythmia risk."},
+    {n:"dronedarone", use:"heart rhythm", t:"crit", note:"Contraindicated — antiarrhythmic; serious arrhythmia risk."},
+    {n:"flecainide", use:"heart rhythm", t:"crit", note:"Contraindicated — antiarrhythmic; serious arrhythmia risk."},
+    {n:"propafenone", use:"heart rhythm", t:"crit", note:"Contraindicated — antiarrhythmic; serious arrhythmia risk."},
+    {n:"quinidine", use:"heart rhythm", t:"crit", note:"Contraindicated — antiarrhythmic; serious arrhythmia risk."},
+    {n:"colchicine", use:"gout", t:"crit", note:"Contraindicated in renal/hepatic impairment — serious/fatal toxicity."},
+    {n:"lurasidone", use:"schizophrenia", t:"crit", note:"Contraindicated — markedly increased exposure."},
+    {n:"pimozide", use:"schizophrenia", t:"crit", note:"Contraindicated — QT prolongation / arrhythmia risk."},
+    {n:"silodosin", use:"enlarged prostate", t:"crit", note:"Contraindicated — raised levels; hypotension risk."},
+    {n:"eplerenone", use:"heart", t:"crit", note:"Contraindicated — hyperkalaemia / hypotension risk."},
+    {n:"ivabradine", use:"heart", t:"crit", note:"Contraindicated — increased exposure; bradycardia."},
+    {n:"dihydroergotamine", use:"migraine", t:"crit", note:"Contraindicated — ergot toxicity (vasospasm/ischaemia)."},
+    {n:"ergotamine", use:"migraine", t:"crit", note:"Contraindicated — ergot toxicity (vasospasm/ischaemia)."},
+    {n:"methylergonovine", use:"postpartum bleeding", t:"crit", note:"Contraindicated — ergot toxicity (vasospasm/ischaemia)."},
+    {n:"lovastatin", use:"cholesterol", t:"crit", note:"Contraindicated — risk of myopathy / rhabdomyolysis."},
+    {n:"simvastatin", use:"cholesterol", t:"crit", note:"Contraindicated — risk of myopathy / rhabdomyolysis."},
+    {n:"lomitapide", use:"cholesterol", t:"crit", note:"Contraindicated — markedly increased exposure; hepatotoxicity."},
+    {n:"voclosporin", use:"immune / lupus nephritis", t:"crit", note:"Contraindicated — see label section 4.3."},
+    {n:"eletriptan", use:"migraine", t:"crit", note:"Contraindicated — increased exposure."},
+    {n:"ubrogepant", use:"migraine", t:"crit", note:"Contraindicated — increased exposure."},
+    {n:"finerenone", use:"kidney disease", t:"crit", note:"Contraindicated — hyperkalaemia risk."},
+    {n:"suzetrigine", use:"acute pain", t:"crit", note:"Contraindicated — see label section 4.3."},
+    {n:"naloxegol", use:"opioid constipation", t:"crit", note:"Contraindicated — increased exposure."},
+    {n:"sildenafil", use:"pulmonary hypertension (PAH)", t:"crit", note:"Contraindicated for PAH — increased exposure; hypotension/syncope."},
+    {n:"triazolam", use:"sleep / anxiety", t:"crit", note:"Contraindicated — prolonged sedation / respiratory depression."},
+    {n:"midazolam (oral)", use:"sleep / anxiety", t:"crit", note:"Oral midazolam contraindicated — prolonged sedation / respiratory depression."},
+    {n:"flibanserin", use:"low sexual desire (HSDD)", t:"crit", note:"Contraindicated — increased exposure; hypotension/syncope."},
+    {n:"tolvaptan", use:"low sodium", t:"crit", note:"Contraindicated — increased exposure."},
+    {n:"apalutamide", use:"prostate cancer", t:"crit", note:"Contraindicated — strong CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"enzalutamide", use:"prostate cancer", t:"crit", note:"Contraindicated — strong CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"carbamazepine", use:"seizures", t:"crit", note:"Contraindicated — CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"phenobarbital", use:"seizures", t:"crit", note:"Contraindicated — CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"primidone", use:"seizures", t:"crit", note:"Contraindicated — CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"phenytoin", use:"seizures", t:"crit", note:"Contraindicated — CYP3A inducer; loss of PAXLOVID efficacy."},
+    {n:"rifampin", use:"bacterial infection / TB", t:"crit", note:"Contraindicated — strong inducer; loss of PAXLOVID efficacy.", alias:["rifampicin"]},
+    {n:"rifapentine", use:"bacterial infection / TB", t:"crit", note:"Contraindicated — strong inducer; loss of PAXLOVID efficacy."},
+    {n:"lumacaftor/ivacaftor", use:"cystic fibrosis", t:"crit", note:"Contraindicated — CYP3A inducer reduces PAXLOVID efficacy.", alias:["lumacaftor","ivacaftor"]},
+    {n:"St John's Wort", use:"herbal — low mood", t:"crit", note:"Contraindicated — herbal inducer; loss of PAXLOVID efficacy.", alias:["st johns wort","hypericum"]},
+
+    // ---- CAUTION / MONITOR (WARNING) ----
+    {n:"warfarin", use:"anticoagulant", t:"warn", note:"Monitor INR closely."},
+    {n:"rivaroxaban", use:"anticoagulant", t:"warn", note:"Avoid — increased bleeding risk."},
+    {n:"dabigatran", use:"anticoagulant", t:"warn", note:"Reduce dose or avoid — bleeding risk."},
+    {n:"apixaban", use:"anticoagulant", t:"warn", note:"Dose-dependent — increased bleeding risk."},
+    {n:"amlodipine", use:"blood pressure (CCB)", t:"warn", note:"Calcium-channel blocker — may need dose decrease."},
+    {n:"diltiazem", use:"blood pressure (CCB)", t:"warn", note:"Calcium-channel blocker — may need dose decrease."},
+    {n:"verapamil", use:"blood pressure (CCB)", t:"warn", note:"Calcium-channel blocker — may need dose decrease."},
+    {n:"digoxin", use:"heart failure / rhythm", t:"warn", note:"Monitor serum digoxin levels."},
+    {n:"atorvastatin", use:"cholesterol", t:"warn", note:"Consider pausing during PAXLOVID course."},
+    {n:"rosuvastatin", use:"cholesterol", t:"warn", note:"Consider pausing during PAXLOVID course."},
+    {n:"clarithromycin", use:"antibiotic", t:"warn", note:"Dose adjust in renal impairment."},
+    {n:"quetiapine", use:"antipsychotic", t:"warn", note:"Reduce dose — increased sedation risk."},
+    {n:"clozapine", use:"antipsychotic", t:"warn", note:"Reduce dose / monitor for toxicity."},
+    {n:"cyclosporine", use:"immunosuppressant", t:"warn", note:"Avoid or monitor levels — expert consult.", alias:["ciclosporin"]},
+    {n:"tacrolimus", use:"immunosuppressant", t:"warn", note:"Avoid or monitor levels — expert consult."},
+    {n:"everolimus", use:"immunosuppressant", t:"warn", note:"Avoid or monitor levels — expert consult."},
+    {n:"sirolimus", use:"immunosuppressant", t:"warn", note:"Avoid or monitor levels — expert consult."},
+    {n:"rifabutin", use:"antibiotic / TB", t:"warn", note:"Reduce rifabutin dose."},
+    {n:"bosentan", use:"pulmonary hypertension", t:"warn", note:"Stop bosentan at least 36 h before PAXLOVID."},
+    {n:"salmeterol", use:"asthma / COPD inhaler", t:"warn", note:"Avoid — cardiovascular (QT/palpitations) risk."},
+    {n:"ethinylestradiol", use:"hormonal contraceptive", t:"warn", note:"Use additional non-hormonal contraception.", alias:["ethinyl estradiol","oral contraceptive","combined pill"]},
+    {n:"dexamethasone", use:"corticosteroid", t:"warn", note:"CYP3A steroid — Cushing's/adrenal risk; prefer prednisolone."},
+    {n:"fluticasone", use:"steroid inhaler / nasal", t:"warn", note:"CYP3A steroid — Cushing's/adrenal risk; prefer beclomethasone."},
+
+    // ---- NO INTERACTION (OK) ----
+    {n:"paracetamol", use:"pain / fever", t:"ok", note:"No interaction identified in this label.", alias:["acetaminophen"]},
+    {n:"metformin", use:"type 2 diabetes", t:"ok", note:"No interaction identified in this label."},
+    {n:"cetirizine", use:"allergy / antihistamine", t:"ok", note:"No interaction identified in this label."},
+    {n:"amoxicillin", use:"antibiotic", t:"ok", note:"No interaction identified in this label."},
+    {n:"omeprazole", use:"acid reflux", t:"ok", note:"No interaction identified in this label."},
+    {n:"levothyroxine", use:"thyroid", t:"ok", note:"No interaction identified in this label."}
+  ];
+
+  var TIER = {crit:{rank:0, label:"Contraindicated"}, warn:{rank:1, label:"Caution"}, ok:{rank:2, label:"No interaction"}};
+  var QUICK = ["simvastatin","warfarin","rifampin","amlodipine","paracetamol","St John's Wort"];
+
+  // give each drug a stable id + searchable haystack
+  DRUGS.forEach(function(d,i){
+    d.id = "d"+i;
+    d.hay = (d.n + " " + d.use + " " + (d.alias?d.alias.join(" "):"")).toLowerCase();
+  });
+  var BY_ID = {};
+  DRUGS.forEach(function(d){ BY_ID[d.id]=d; });
+
+  var selected = []; // array of ids, insertion order
+
+  // ---- DOM refs ----
+  var input   = document.getElementById("drugSearch");
+  var listEl  = document.getElementById("drugList");
+  var addBtn  = document.getElementById("addBtn");
+  var quickEl = document.getElementById("quickChips");
+  var selBar  = document.getElementById("selBar");
+  var selEmpty= document.getElementById("selEmpty");
+  var banner  = document.getElementById("banner");
+  var verdict = document.getElementById("verdict");
+  var countsEl= document.getElementById("counts");
+  var resBody = document.getElementById("resBody");
+
+  var matches = [];      // current filtered list
+  var activeIdx = -1;    // highlighted option index
+
+  function esc(s){ return s.replace(/[&<>"]/g, function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c];}); }
+  function cap(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+  function highlight(name, q){
+    if(!q) return esc(name);
+    var i = name.toLowerCase().indexOf(q.toLowerCase());
+    if(i<0) return esc(name);
+    return esc(name.slice(0,i)) + "<mark>" + esc(name.slice(i,i+q.length)) + "</mark>" + esc(name.slice(i+q.length));
+  }
+
+  function filter(q){
+    q = q.trim().toLowerCase();
+    var out = DRUGS.filter(function(d){
+      if(selected.indexOf(d.id)>=0) return false;      // hide already-added
+      if(!q) return false;
+      return d.hay.indexOf(q) >= 0;
+    });
+    // rank: name-startsWith first, then severity, then alpha
+    out.sort(function(a,b){
+      var as = a.n.toLowerCase().indexOf(q)===0 ? 0:1;
+      var bs = b.n.toLowerCase().indexOf(q)===0 ? 0:1;
+      if(as!==bs) return as-bs;
+      if(TIER[a.t].rank!==TIER[b.t].rank) return TIER[a.t].rank-TIER[b.t].rank;
+      return a.n.localeCompare(b.n);
+    });
+    return out.slice(0,10);
+  }
+
+  function renderList(){
+    var q = input.value.trim();
+    matches = filter(q);
+    activeIdx = -1;
+    input.removeAttribute("aria-activedescendant");
+
+    if(!q){
+      listEl.hidden = true; input.setAttribute("aria-expanded","false");
+      addBtn.disabled = true; return;
+    }
+    if(matches.length===0){
+      listEl.innerHTML = '<li class="none">No match in the PAXLOVID label index.</li>';
+      listEl.hidden = false; input.setAttribute("aria-expanded","true");
+      addBtn.disabled = true; return;
+    }
+    listEl.innerHTML = matches.map(function(d,i){
+      return '<li class="opt" id="opt-'+d.id+'" role="option" aria-selected="false" data-id="'+d.id+'" data-i="'+i+'">'
+        + '<span class="dot '+d.t+'" aria-hidden="true"></span>'
+        + '<span class="nm">'+highlight(d.n,q)+'</span>'
+        + '<span class="use">'+esc(d.use)+'</span></li>';
+    }).join("");
+    listEl.hidden = false;
+    input.setAttribute("aria-expanded","true");
+    addBtn.disabled = false;
+  }
+
+  function setActive(i){
+    var opts = listEl.querySelectorAll(".opt");
+    if(!opts.length) return;
+    if(i<0) i = opts.length-1;
+    if(i>=opts.length) i = 0;
+    activeIdx = i;
+    opts.forEach(function(o,idx){
+      var on = idx===i;
+      o.setAttribute("aria-selected", on?"true":"false");
+      if(on){ input.setAttribute("aria-activedescendant", o.id); o.scrollIntoView({block:"nearest"}); }
+    });
+  }
+
+  function addDrug(id){
+    if(!id || selected.indexOf(id)>=0) return;
+    selected.push(id);
+    input.value=""; renderList();
+    renderSelected(); renderResults();
+    input.focus();
+  }
+
+  function removeDrug(id){
+    var i = selected.indexOf(id);
+    if(i>=0) selected.splice(i,1);
+    renderSelected(); renderResults(); renderList();
+  }
+
+  function commitFromInput(){
+    if(activeIdx>=0 && matches[activeIdx]){ addDrug(matches[activeIdx].id); return; }
+    if(matches.length===1){ addDrug(matches[0].id); return; }
+    // exact-ish name match fallback
+    var q = input.value.trim().toLowerCase();
+    var exact = DRUGS.filter(function(d){return selected.indexOf(d.id)<0;})
+      .find(function(d){ return d.n.toLowerCase()===q || (d.alias&&d.alias.indexOf(q)>=0); });
+    if(exact) addDrug(exact.id);
+    else if(matches[0]) addDrug(matches[0].id);
+  }
+
+  // ---- Selected chips ----
+  function renderSelected(){
+    if(selected.length===0){
+      selBar.innerHTML=""; selBar.appendChild(selEmpty); selEmpty.hidden=false;
+      return;
+    }
+    selEmpty.hidden=true;
+    // display sorted by severity so chips echo the verdict order
+    var ids = selected.slice().sort(function(a,b){ return TIER[BY_ID[a].t].rank - TIER[BY_ID[b].t].rank; });
+    var html = ids.map(function(id){
+      var d = BY_ID[id];
+      return '<span class="chip '+d.t+'" role="listitem">'
+        + '<span class="cdot dot '+d.t+'" aria-hidden="true"></span>'
+        + cap(esc(d.n))
+        + '<button type="button" aria-label="Remove '+esc(d.n)+'" data-rm="'+id+'">&times;</button></span>';
+    }).join("");
+    html += '<button type="button" class="clear-all" id="clearAll">Clear all</button>';
+    selBar.innerHTML = html;
+  }
+
+  // ---- Results ----
+  function renderResults(){
+    var c = {crit:0, warn:0, ok:0};
+    selected.forEach(function(id){ c[BY_ID[id].t]++; });
+
+    // banner
+    banner.className = "banner " + (selected.length===0 ? "idle" : (c.crit? "crit" : c.warn? "warn" : "ok"));
+    if(selected.length===0){
+      verdict.textContent = "Add medicines to screen against PAXLOVID";
+      countsEl.innerHTML = "";
+    } else {
+      if(c.crit) verdict.innerHTML = '<span aria-hidden="true">&#9940;</span> Do not co-prescribe';
+      else if(c.warn) verdict.innerHTML = '<span aria-hidden="true">&#9888;</span> Caution — review before prescribing';
+      else verdict.innerHTML = '<span aria-hidden="true">&#10003;</span> No interactions identified';
+      countsEl.innerHTML =
+        '<span class="count crit"><b>'+c.crit+'</b> contraindicated</span>'
+      + '<span class="count warn"><b>'+c.warn+'</b> caution</span>'
+      + '<span class="count ok"><b>'+c.ok+'</b> no interaction</span>';
+    }
+
+    if(selected.length===0){
+      resBody.innerHTML = '<tr><td colspan="3" class="res-empty">Results appear here, sorted by severity.</td></tr>';
+      return;
+    }
+    var ids = selected.slice().sort(function(a,b){
+      var r = TIER[BY_ID[a].t].rank - TIER[BY_ID[b].t].rank;
+      return r!==0 ? r : BY_ID[a].n.localeCompare(BY_ID[b].n);
+    });
+    resBody.innerHTML = ids.map(function(id){
+      var d = BY_ID[id];
+      var sevTxt = d.t==="crit"?"Contraindicated":d.t==="warn"?"Caution":"OK";
+      return '<tr>'
+        + '<td class="sev"><span class="sev-badge '+d.t+'">'+sevTxt+'</span></td>'
+        + '<td class="drug">'+cap(esc(d.n))+'<small>'+esc(d.use)+'</small></td>'
+        + '<td class="note">'+esc(d.note)+'</td>'
+        + '</tr>';
+    }).join("");
+  }
+
+  // ---- Quick add ----
+  function renderQuick(){
+    quickEl.innerHTML = QUICK.map(function(name){
+      var d = DRUGS.find(function(x){return x.n===name;});
+      if(!d) return "";
+      return '<button type="button" class="qadd" data-id="'+d.id+'">'+esc(d.n)+'</button>';
+    }).join("");
+    updateQuick();
+  }
+  function updateQuick(){
+    quickEl.querySelectorAll(".qadd").forEach(function(b){
+      b.disabled = selected.indexOf(b.getAttribute("data-id"))>=0;
+    });
+  }
+
+  // ---- Events ----
+  input.addEventListener("input", renderList);
+  input.addEventListener("keydown", function(e){
+    if(e.key==="ArrowDown"){ e.preventDefault(); if(listEl.hidden) renderList(); setActive(activeIdx+1); }
+    else if(e.key==="ArrowUp"){ e.preventDefault(); setActive(activeIdx-1); }
+    else if(e.key==="Enter"){ e.preventDefault(); if(input.value.trim()) commitFromInput(); }
+    else if(e.key==="Escape"){ input.value=""; renderList(); }
+  });
+  input.addEventListener("blur", function(){ setTimeout(function(){ listEl.hidden=true; input.setAttribute("aria-expanded","false"); }, 150); });
+
+  listEl.addEventListener("mousedown", function(e){
+    var li = e.target.closest(".opt"); if(!li) return;
+    e.preventDefault(); addDrug(li.getAttribute("data-id"));
+  });
+
+  addBtn.addEventListener("click", function(){ if(input.value.trim()) commitFromInput(); });
+
+  quickEl.addEventListener("click", function(e){
+    var b = e.target.closest(".qadd"); if(!b) return; addDrug(b.getAttribute("data-id"));
+  });
+
+  selBar.addEventListener("click", function(e){
+    var rm = e.target.closest("[data-rm]");
+    if(rm){ removeDrug(rm.getAttribute("data-rm")); return; }
+    if(e.target.id==="clearAll"){ selected=[]; renderSelected(); renderResults(); renderList(); input.focus(); }
+  });
+
+  // keep quick-add disabled state in sync after any change
+  var _sel = renderSelected, _res = renderResults;
+  renderSelected = function(){ _sel(); updateQuick(); };
+  renderResults  = function(){ _res(); };
+
+  // ---- init ----
+  renderQuick();
+  renderSelected();
+  renderResults();
+})();
+</script>
+</body>
+</html>

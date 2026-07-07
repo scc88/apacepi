@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAXLOVID ePI — CDS / EMR alert integration (clinician view)</title>
+<meta name="description" content="Illustrative concept mockup: the PAXLOVID Singapore ePI firing as clinical-decision-support alerts inside a mock EMR prescribing workflow — contraindication, caution and renal-dosing checks sourced live from the published label.">
+<style>
+:root{
+  --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+  --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+  --accent:#0d7d7a; --accent-ink:#0a5b59; --accent-tint:#e2f1f0;
+  --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+  --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--ground); color:var(--ink); font-family:var(--sans);
+  line-height:1.5; -webkit-font-smoothing:antialiased; font-size:16px;
+}
+/* ---------- header ---------- */
+.appbar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--line);
+  position:sticky; top:0; z-index:5;
+}
+.appbar .brand{font-weight:700; letter-spacing:.01em}
+.appbar .brand .dot{color:var(--accent)}
+.tag{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--accent-ink); background:var(--accent-tint); border:1px solid var(--accent);
+  padding:2px 8px; border-radius:999px;
+}
+.appbar .spacer{flex:1 1 auto}
+.backlink{
+  font-family:var(--mono); font-size:12px; letter-spacing:.04em; text-decoration:none;
+  color:var(--accent-ink); border:1px solid var(--line); background:var(--surface);
+  padding:6px 10px; border-radius:8px; white-space:nowrap;
+}
+.backlink:hover{background:var(--accent-tint); border-color:var(--accent)}
+/* ---------- layout ---------- */
+.wrap{max-width:920px; margin:0 auto; padding:20px 16px 48px}
+.lede{margin:6px 0 20px}
+.lede h1{font-family:var(--serif); font-weight:600; font-size:1.5rem; line-height:1.2; margin:0 0 6px}
+.lede p{margin:0; color:var(--muted); max-width:60ch}
+.mocklabel{
+  display:inline-flex; align-items:center; gap:8px; font-family:var(--mono);
+  font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);
+  background:var(--surface-2); border:1px dashed var(--line); border-radius:8px;
+  padding:6px 10px; margin-bottom:12px;
+}
+.mocklabel::before{content:"◔"; color:var(--faint)}
+/* ---------- EMR window ---------- */
+.emr{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px;
+  overflow:hidden; box-shadow:0 1px 0 rgba(20,32,31,.03), 0 8px 26px -18px rgba(20,32,31,.35);
+}
+.emr__chrome{
+  display:flex; align-items:center; gap:8px; padding:9px 14px;
+  background:var(--surface-2); border-bottom:1px solid var(--line);
+}
+.emr__chrome .dots{display:flex; gap:6px}
+.emr__chrome .dots i{width:11px; height:11px; border-radius:50%; background:var(--line); display:block}
+.emr__chrome .dots i:nth-child(1){background:#e2b3ab}
+.emr__chrome .dots i:nth-child(2){background:#e6d29a}
+.emr__chrome .dots i:nth-child(3){background:#a9cdb3}
+.emr__chrome .title{
+  font-family:var(--mono); font-size:12px; letter-spacing:.04em; color:var(--muted);
+}
+.emr__chrome .title b{color:var(--ink); font-weight:600}
+.emr__body{padding:0}
+/* patient banner */
+.patient{
+  display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap;
+  padding:14px 16px; background:#fbfdfd; border-bottom:1px solid var(--line);
+}
+.avatar{
+  width:42px; height:42px; border-radius:10px; flex:none;
+  background:var(--accent-tint); color:var(--accent-ink); border:1px solid var(--accent);
+  display:grid; place-items:center; font-weight:700; font-family:var(--mono); font-size:14px;
+}
+.patient .who{flex:1 1 220px; min-width:0}
+.patient .name{font-weight:700; font-size:1.05rem}
+.patient .meta{
+  font-family:var(--mono); font-size:12px; color:var(--muted); margin-top:2px;
+  display:flex; flex-wrap:wrap; gap:4px 14px;
+}
+.patient .meta .k{color:var(--faint)}
+.patient .flag{
+  font-family:var(--mono); font-size:11px; letter-spacing:.04em; padding:3px 8px; border-radius:6px;
+  border:1px solid; white-space:nowrap;
+}
+.flag--renal{color:var(--warn); background:var(--warn-tint); border-color:var(--warn)}
+.flag--allergy{color:var(--muted); background:var(--surface-2); border-color:var(--line)}
+/* section headings inside emr */
+.emr h2{
+  font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--faint); margin:0; padding:14px 16px 6px; font-weight:700;
+}
+/* med list */
+.meds{list-style:none; margin:0; padding:0 16px 6px}
+.med{
+  display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line);
+}
+.med:last-child{border-bottom:0}
+.pill{
+  width:28px; height:18px; border-radius:9px; flex:none; border:1px solid var(--line);
+  background:linear-gradient(180deg,#fff,var(--surface-2));
+}
+.pill--stat{background:linear-gradient(180deg,#fff,#f3ece2)}
+.pill--antic{background:linear-gradient(180deg,#fff,#f7e6e6)}
+.med .mn{font-weight:600; flex:1 1 auto; min-width:0}
+.med .mn small{display:block; color:var(--muted); font-weight:400; font-family:var(--mono); font-size:11.5px}
+.med .status{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+  padding:2px 7px; border-radius:999px; border:1px solid var(--line); color:var(--faint); white-space:nowrap;
+}
+/* action row */
+.actionrow{
+  padding:14px 16px 18px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  border-top:1px solid var(--line); background:var(--surface-2);
+}
+.btn{
+  font:inherit; cursor:pointer; border-radius:9px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); padding:9px 14px; font-weight:600;
+  display:inline-flex; align-items:center; gap:8px;
+}
+.btn:hover{border-color:var(--accent); color:var(--accent-ink)}
+.btn--primary{
+  background:var(--accent); border-color:var(--accent); color:#fff; font-size:1rem; padding:11px 18px;
+}
+.btn--primary:hover{background:var(--accent-ink); color:#fff}
+.btn--ghost{background:transparent}
+.btn--danger{color:var(--crit); border-color:#e6bcb5}
+.btn--danger:hover{background:var(--crit-tint); border-color:var(--crit); color:var(--crit)}
+.btn--sm{padding:7px 11px; font-size:.86rem; border-radius:8px}
+.hint{font-family:var(--mono); font-size:11.5px; color:var(--muted); flex:1 1 100%}
+.hint b{color:var(--accent-ink)}
+:where(a,button,[tabindex]):focus-visible{
+  outline:3px solid var(--accent); outline-offset:2px; border-radius:8px;
+}
+/* ---------- CDS alert modal ---------- */
+.overlay{
+  position:fixed; inset:0; background:rgba(20,32,31,.5); z-index:20;
+  display:flex; align-items:flex-start; justify-content:center; padding:24px 12px;
+  overflow-y:auto;
+}
+.overlay[hidden]{display:none}
+.dialog{
+  width:100%; max-width:640px; background:var(--surface); border-radius:14px; margin:auto 0;
+  border:1px solid var(--line); box-shadow:0 24px 60px -20px rgba(20,32,31,.55);
+  overflow:hidden;
+}
+.dialog__head{
+  padding:16px 18px 12px; border-bottom:1px solid var(--line);
+  display:flex; align-items:flex-start; gap:12px;
+}
+.dialog__head .icn{
+  width:34px; height:34px; border-radius:9px; flex:none; display:grid; place-items:center;
+  background:var(--crit-tint); color:var(--crit); font-weight:800; font-size:18px; border:1px solid #e6bcb5;
+}
+.dialog__head h2{
+  margin:0; font-family:var(--serif); font-weight:600; font-size:1.18rem; line-height:1.2; color:var(--ink);
+  padding:0; text-transform:none; letter-spacing:0;
+}
+.dialog__head p{margin:3px 0 0; font-family:var(--mono); font-size:11.5px; color:var(--muted)}
+.dialog__head .count{
+  font-family:var(--mono); font-size:11px; color:var(--crit); background:var(--crit-tint);
+  border:1px solid #e6bcb5; border-radius:999px; padding:2px 9px; margin-left:auto; white-space:nowrap;
+}
+.dialog__body{padding:6px 18px 4px; max-height:none}
+.dialog__foot{
+  padding:14px 18px; border-top:1px solid var(--line); background:var(--surface-2);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.dialog__foot .lft{font-family:var(--mono); font-size:11.5px; color:var(--muted); flex:1 1 100%}
+/* alert card */
+.alert{
+  border:1px solid var(--line); border-left-width:5px; border-radius:10px; margin:12px 0; padding:12px 14px;
+  background:var(--surface);
+}
+.alert--crit{border-left-color:var(--crit); background:linear-gradient(90deg,var(--crit-tint),transparent 60%)}
+.alert--warn{border-left-color:var(--warn); background:linear-gradient(90deg,var(--warn-tint),transparent 60%)}
+.alert--info{border-left-color:var(--accent); background:linear-gradient(90deg,var(--accent-tint),transparent 60%)}
+.alert__top{display:flex; align-items:center; gap:9px; flex-wrap:wrap}
+.sev{
+  font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; font-weight:700;
+  padding:2px 8px; border-radius:6px; border:1px solid;
+}
+.sev--crit{color:var(--crit); background:var(--crit-tint); border-color:var(--crit)}
+.sev--warn{color:var(--warn); background:var(--warn-tint); border-color:var(--warn)}
+.sev--info{color:var(--accent-ink); background:var(--accent-tint); border-color:var(--accent)}
+.alert__title{font-weight:700; font-size:1rem}
+.alert__title .drug{font-family:var(--mono)}
+.alert__msg{margin:8px 0 0; color:var(--ink)}
+.alert__msg strong{color:var(--crit)}
+.alert--warn .alert__msg strong{color:var(--warn)}
+.dose{
+  margin:10px 0 0; padding:9px 11px; border:1px dashed var(--accent); border-radius:8px;
+  background:var(--accent-tint); font-size:.92rem;
+}
+.dose b{font-family:var(--mono)}
+.src{
+  margin-top:10px; font-family:var(--mono); font-size:10.5px; letter-spacing:.02em; color:var(--faint);
+  display:flex; align-items:center; gap:6px;
+}
+.src::before{content:"🔗"; filter:grayscale(1); opacity:.7}
+.src a{color:var(--accent-ink); text-decoration:none; border-bottom:1px dotted var(--accent)}
+.alert__actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:12px}
+.override{margin-top:10px}
+.override[hidden]{display:none}
+.override label{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.05em; color:var(--muted); text-transform:uppercase; margin-bottom:5px}
+.override textarea{
+  width:100%; font:inherit; font-size:.92rem; padding:8px 10px; border:1px solid var(--line);
+  border-radius:8px; resize:vertical; min-height:56px; background:#fff; color:var(--ink);
+}
+.override textarea:focus-visible{outline:3px solid var(--accent); outline-offset:1px}
+.override .row{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap}
+/* resolved state on an alert */
+.alert.resolved{opacity:.72}
+.alert.resolved .alert__actions,.alert.resolved .override{display:none}
+.resbadge{
+  display:none; margin-top:10px; font-family:var(--mono); font-size:11px; letter-spacing:.03em;
+  padding:5px 9px; border-radius:7px; border:1px solid;
+}
+.alert.resolved .resbadge{display:inline-flex; align-items:center; gap:6px}
+.resbadge--cancel{color:var(--crit); background:var(--crit-tint); border-color:#e6bcb5}
+.resbadge--modify{color:var(--accent-ink); background:var(--accent-tint); border-color:var(--accent)}
+.resbadge--override{color:var(--warn); background:var(--warn-tint); border-color:var(--warn)}
+/* ---------- order summary ---------- */
+.summary{margin-top:20px}
+.summary[hidden]{display:none}
+.card{
+  background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:18px;
+}
+.card--ok{border-top:4px solid var(--ok)}
+.card__h{display:flex; align-items:center; gap:10px; margin-bottom:4px}
+.card__h .ok-icn{
+  width:30px; height:30px; border-radius:8px; background:var(--ok-tint); color:var(--ok);
+  border:1px solid #b6ddc4; display:grid; place-items:center; font-weight:800;
+}
+.card h3{margin:0; font-family:var(--serif); font-weight:600; font-size:1.15rem}
+.card .sub{font-family:var(--mono); font-size:11.5px; color:var(--muted); margin:0 0 14px}
+.orx{list-style:none; margin:0; padding:0}
+.orx li{display:flex; gap:12px; padding:11px 0; border-bottom:1px solid var(--line); align-items:flex-start}
+.orx li:last-child{border-bottom:0}
+.orx .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); flex:0 0 128px}
+.orx .val{flex:1 1 auto; min-width:0}
+.orx .val b{font-family:var(--mono)}
+.resolutions{margin-top:14px; padding-top:14px; border-top:1px solid var(--line)}
+.resolutions h4{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--faint); margin:0 0 8px;
+}
+.rline{display:flex; gap:9px; align-items:flex-start; font-size:.92rem; margin:6px 0}
+.rline .rt{
+  font-family:var(--mono); font-size:10px; letter-spacing:.05em; text-transform:uppercase; font-weight:700;
+  padding:2px 7px; border-radius:6px; border:1px solid; flex:none; margin-top:1px;
+}
+.rt--cancel{color:var(--crit); background:var(--crit-tint); border-color:#e6bcb5}
+.rt--modify{color:var(--accent-ink); background:var(--accent-tint); border-color:var(--accent)}
+.rt--override{color:var(--warn); background:var(--warn-tint); border-color:var(--warn)}
+.summary__actions{margin-top:16px; display:flex; gap:10px; flex-wrap:wrap}
+/* callout */
+.callout{
+  margin-top:22px; background:var(--accent-tint); border:1px solid var(--accent); border-radius:12px;
+  padding:14px 16px; display:flex; gap:12px; align-items:flex-start;
+}
+.callout .b{font-size:20px; line-height:1; flex:none}
+.callout p{margin:0; font-size:.94rem; color:var(--accent-ink)}
+.callout p b{color:var(--accent-ink)}
+/* footer */
+footer{max-width:920px; margin:0 auto; padding:26px 16px 40px}
+footer .disc{
+  font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:16px;
+  max-width:70ch;
+}
+.visually-hidden{position:absolute!important; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+@media (max-width:480px){
+  .lede h1{font-size:1.3rem}
+  .orx .lbl{flex-basis:100%}
+  .dialog__head h2{font-size:1.05rem}
+}
+@media (prefers-reduced-motion:no-preference){
+  .alert{transition:opacity .2s ease}
+  .btn{transition:background .15s ease, border-color .15s ease, color .15s ease}
+  .dialog{animation:pop .18s ease}
+  @keyframes pop{from{transform:translateY(8px); opacity:0} to{transform:none; opacity:1}}
+}
+</style>
+</head>
+<body>
+<header class="appbar">
+  <span class="brand">PAXLOVID <span class="dot">·</span> Singapore ePI</span>
+  <span class="tag">Clinician view</span>
+  <span class="spacer"></span>
+  <a class="backlink" href="../sg-epi-pilot.html" target="_top">↩ ePI Pilot</a>
+</header>
+
+<main class="wrap">
+  <div class="lede">
+    <h1>The label as a live service — at the point of prescribing</h1>
+    <p>Instead of a PDF a clinician must remember to open, the published PAXLOVID ePI answers a
+      question the EMR asks in real time. Below, a mock prescribing screen calls the ePI when you
+      order PAXLOVID and surfaces the safety checks inline.</p>
+  </div>
+
+  <p class="mocklabel">Illustrative EMR — mock · fictional patient &amp; medication list</p>
+
+  <section class="emr" aria-label="Mock electronic medical record prescribing screen">
+    <div class="emr__chrome">
+      <span class="dots" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span class="title"><b>CareChart EMR</b> — Prescribing (demo)</span>
+    </div>
+
+    <div class="emr__body">
+      <!-- patient banner -->
+      <div class="patient">
+        <div class="avatar" aria-hidden="true">TM</div>
+        <div class="who">
+          <div class="name">TAN, Mei Ling <span class="visually-hidden">, fictional patient</span></div>
+          <div class="meta">
+            <span><span class="k">MRN</span> 9000-1123 (demo)</span>
+            <span><span class="k">Age/Sex</span> 68 F</span>
+            <span><span class="k">Weight</span> 58 kg</span>
+          </div>
+        </div>
+        <span class="flag flag--renal">eGFR 42 mL/min · moderate</span>
+        <span class="flag flag--allergy">Allergies: none recorded</span>
+      </div>
+
+      <!-- current meds -->
+      <h2>Current medications</h2>
+      <ul class="meds">
+        <li class="med">
+          <span class="pill pill--stat" aria-hidden="true"></span>
+          <span class="mn">Simvastatin 40 mg<small>ONCE daily at night · hyperlipidaemia</small></span>
+          <span class="status">Active</span>
+        </li>
+        <li class="med">
+          <span class="pill pill--antic" aria-hidden="true"></span>
+          <span class="mn">Warfarin 3 mg<small>ONCE daily · atrial fibrillation · target INR 2–3</small></span>
+          <span class="status">Active</span>
+        </li>
+        <li class="med">
+          <span class="pill" aria-hidden="true"></span>
+          <span class="mn">Metformin 500 mg<small>TWICE daily · type 2 diabetes</small></span>
+          <span class="status">Active</span>
+        </li>
+        <li class="med">
+          <span class="pill" aria-hidden="true"></span>
+          <span class="mn">Omeprazole 20 mg<small>ONCE daily · reflux</small></span>
+          <span class="status">Active</span>
+        </li>
+      </ul>
+
+      <!-- action -->
+      <div class="actionrow">
+        <button class="btn btn--primary" id="prescribeBtn" type="button">
+          <span aria-hidden="true">＋</span> Prescribe PAXLOVID
+        </button>
+        <p class="hint">Ordering runs a live check against the <b>published PAXLOVID ePI</b>
+          (contraindications, interactions &amp; renal dosing) before the order is signed.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- order summary (revealed after resolving) -->
+  <section class="summary" id="summary" hidden aria-live="polite" tabindex="-1">
+    <div class="card card--ok">
+      <div class="card__h">
+        <span class="ok-icn" aria-hidden="true">✓</span>
+        <h3>Order ready to sign — PAXLOVID</h3>
+      </div>
+      <p class="sub">All ePI safety checks reviewed &amp; resolved · <span id="sumTime"></span></p>
+      <ul class="orx">
+        <li><span class="lbl">Patient</span><span class="val">TAN, Mei Ling · 68 F · eGFR 42 mL/min (fictional)</span></li>
+        <li><span class="lbl">Drug</span><span class="val"><b>PAXLOVID</b> (nirmatrelvir 150 mg + ritonavir 100 mg), co-packaged tablets</span></li>
+        <li><span class="lbl">Regimen</span><span class="val"><b>1 nirmatrelvir + 1 ritonavir</b>, twice daily for 5 days — <em>renal-adjusted for moderate impairment</em></span></li>
+        <li><span class="lbl">Start</span><span class="val">Within 5 days of symptom onset · take with or without food · swallow whole</span></li>
+      </ul>
+      <div class="resolutions">
+        <h4>Safety-check resolutions</h4>
+        <div id="resList"></div>
+      </div>
+      <div class="summary__actions">
+        <button class="btn btn--primary" type="button" id="signBtn">Sign &amp; send to pharmacy</button>
+        <button class="btn btn--ghost" type="button" id="resetBtn">Start over</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="callout">
+    <span class="b" aria-hidden="true">◎</span>
+    <p>This is the difference a structured ePI makes: the same FHIR document that publishes the
+      label also powers a service the EMR can query at the moment of prescribing. The clinician
+      doesn’t have to remember to open a PDF — <b>the label reaches out</b> when it’s relevant.</p>
+  </div>
+</main>
+
+<!-- ============ CDS ALERT MODAL ============ -->
+<div class="overlay" id="overlay" hidden>
+  <div class="dialog" role="alertdialog" aria-modal="true" aria-labelledby="dlgTitle" aria-describedby="dlgDesc" id="dialog">
+    <div class="dialog__head">
+      <span class="icn" aria-hidden="true">!</span>
+      <div>
+        <h2 id="dlgTitle">PAXLOVID — clinical-decision-support checks</h2>
+        <p id="dlgDesc">Live check against the published ePI for TAN, Mei Ling (eGFR 42)</p>
+      </div>
+      <span class="count" id="alertCount">3 alerts</span>
+    </div>
+
+    <div class="dialog__body">
+      <!-- CRITICAL: simvastatin -->
+      <div class="alert alert--crit" data-key="simvastatin" data-label="Simvastatin — contraindicated">
+        <div class="alert__top">
+          <span class="sev sev--crit">Critical · contraindicated</span>
+          <span class="alert__title"><span class="drug">Simvastatin</span> × PAXLOVID</span>
+        </div>
+        <p class="alert__msg"><strong>Do not co-administer.</strong> Ritonavir strongly inhibits
+          CYP3A4, sharply raising simvastatin levels and the risk of
+          <strong>myopathy / rhabdomyolysis</strong>. Simvastatin is on the ePI “Do not take with”
+          list.</p>
+        <p class="src">source: PAXLOVID ePI · <a href="../sg-epi-pilot.html" target="_top">PAXH-SIN-0126</a> · ClinicalUseDefinition (contraindication)</p>
+        <div class="alert__actions">
+          <button class="btn btn--sm btn--danger" type="button" data-act="cancel">Cancel order</button>
+          <button class="btn btn--sm" type="button" data-act="modify">Modify — hold simvastatin</button>
+          <button class="btn btn--sm btn--ghost" type="button" data-act="override" aria-expanded="false">Override with reason</button>
+        </div>
+        <div class="override" hidden>
+          <label for="ov-simvastatin">Override reason (required — recorded in the audit log)</label>
+          <textarea id="ov-simvastatin" placeholder="e.g. Simvastatin held for the 5-day course; patient counselled."></textarea>
+          <div class="row">
+            <button class="btn btn--sm btn--primary" type="button" data-act="override-save">Save override</button>
+            <button class="btn btn--sm btn--ghost" type="button" data-act="override-cancel">Back</button>
+          </div>
+        </div>
+        <span class="resbadge resbadge--cancel"></span>
+      </div>
+
+      <!-- WARNING: warfarin -->
+      <div class="alert alert--warn" data-key="warfarin" data-label="Warfarin — monitor INR">
+        <div class="alert__top">
+          <span class="sev sev--warn">Warning · monitor</span>
+          <span class="alert__title"><span class="drug">Warfarin</span> × PAXLOVID</span>
+        </div>
+        <p class="alert__msg">Potential interaction. <strong>Monitor INR</strong> closely during and
+          shortly after the 5-day course and adjust the warfarin dose as needed; bleeding risk may
+          change.</p>
+        <p class="src">source: PAXLOVID ePI · <a href="../sg-epi-pilot.html" target="_top">PAXH-SIN-0126</a> · ClinicalUseDefinition (interaction)</p>
+        <div class="alert__actions">
+          <button class="btn btn--sm btn--danger" type="button" data-act="cancel">Cancel order</button>
+          <button class="btn btn--sm" type="button" data-act="modify">Modify — add INR monitoring</button>
+          <button class="btn btn--sm btn--ghost" type="button" data-act="override" aria-expanded="false">Override with reason</button>
+        </div>
+        <div class="override" hidden>
+          <label for="ov-warfarin">Override reason (required — recorded in the audit log)</label>
+          <textarea id="ov-warfarin" placeholder="e.g. INR check arranged day 3 and day 7; anticoagulation clinic informed."></textarea>
+          <div class="row">
+            <button class="btn btn--sm btn--primary" type="button" data-act="override-save">Save override</button>
+            <button class="btn btn--sm btn--ghost" type="button" data-act="override-cancel">Back</button>
+          </div>
+        </div>
+        <span class="resbadge resbadge--modify"></span>
+      </div>
+
+      <!-- INFO: renal dosing -->
+      <div class="alert alert--info" data-key="renal" data-label="Renal dosing — reduced regimen">
+        <div class="alert__top">
+          <span class="sev sev--info">Advisory · renal dose</span>
+          <span class="alert__title">Renal dosing — eGFR 42</span>
+        </div>
+        <p class="alert__msg">eGFR 42 mL/min = <strong>moderate impairment</strong>. The ePI dosing
+          table calls for the reduced regimen.</p>
+        <div class="dose">Recommended: <b>1 nirmatrelvir (150 mg) + 1 ritonavir (100 mg), twice
+          daily for 5 days.</b> Note: the co-packaged carton may contain more tablets than needed —
+          counsel the patient.</div>
+        <p class="src">source: PAXLOVID ePI · <a href="../sg-epi-pilot.html" target="_top">PAXH-SIN-0126</a> · dosing by kidney function</p>
+        <div class="alert__actions">
+          <button class="btn btn--sm btn--primary" type="button" data-act="accept-dose">Apply reduced regimen</button>
+          <button class="btn btn--sm btn--ghost" type="button" data-act="override" aria-expanded="false">Override with reason</button>
+        </div>
+        <div class="override" hidden>
+          <label for="ov-renal">Override reason (required — recorded in the audit log)</label>
+          <textarea id="ov-renal" placeholder="e.g. Keeping standard regimen per specialist advice; rationale documented."></textarea>
+          <div class="row">
+            <button class="btn btn--sm btn--primary" type="button" data-act="override-save">Save override</button>
+            <button class="btn btn--sm btn--ghost" type="button" data-act="override-cancel">Back</button>
+          </div>
+        </div>
+        <span class="resbadge resbadge--modify"></span>
+      </div>
+    </div>
+
+    <div class="dialog__foot">
+      <span class="lft">Alerts generated live from the published ePI · press <b>Esc</b> to dismiss without ordering</span>
+      <button class="btn btn--ghost btn--sm" type="button" id="dismissBtn">Dismiss</button>
+      <button class="btn btn--primary btn--sm" type="button" id="continueBtn" disabled aria-describedby="continueHint">Continue — <span id="remainLbl">3</span> to resolve</button>
+      <span class="visually-hidden" id="continueHint" aria-live="polite">Resolve all alerts to continue the order.</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p class="disc">Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice.
+    Driven by the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system
+    URLs are placeholders to be confirmed with HSA. Data simplified for demonstration.</p>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var overlay   = document.getElementById('overlay');
+  var dialog    = document.getElementById('dialog');
+  var prescribe = document.getElementById('prescribeBtn');
+  var continueBtn = document.getElementById('continueBtn');
+  var dismissBtn  = document.getElementById('dismissBtn');
+  var remainLbl   = document.getElementById('remainLbl');
+  var summary   = document.getElementById('summary');
+  var resList   = document.getElementById('resList');
+  var resetBtn  = document.getElementById('resetBtn');
+  var signBtn   = document.getElementById('signBtn');
+  var sumTime   = document.getElementById('sumTime');
+  var alerts    = Array.prototype.slice.call(dialog.querySelectorAll('.alert'));
+  var lastFocus = null;
+
+  var resTypeMeta = {
+    cancel:   {cls:'cancel',   rt:'rt--cancel',   text:'Order cancelled'},
+    modify:   {cls:'modify',   rt:'rt--modify',   text:'Modified'},
+    'accept-dose':{cls:'modify', rt:'rt--modify', text:'Reduced regimen applied'},
+    override: {cls:'override', rt:'rt--override', text:'Overridden'}
+  };
+
+  function focusables(container){
+    return Array.prototype.slice.call(container.querySelectorAll(
+      'button:not([disabled]), a[href], textarea, [tabindex]:not([tabindex="-1"])'
+    )).filter(function(el){ return el.offsetParent !== null; });
+  }
+
+  function updateRemaining(){
+    var remaining = alerts.filter(function(a){ return !a.classList.contains('resolved'); }).length;
+    remainLbl.textContent = remaining;
+    if(remaining === 0){
+      continueBtn.disabled = false;
+      continueBtn.firstChild.nodeValue = 'Continue to order ';
+      remainLbl.textContent = '✓';
+      document.getElementById('continueHint').textContent = 'All alerts resolved. You can continue the order.';
+    } else {
+      continueBtn.disabled = true;
+    }
+  }
+
+  function resolveAlert(alert, actKey, reasonText){
+    var meta = resTypeMeta[actKey] || resTypeMeta.modify;
+    alert.classList.add('resolved');
+    var badge = alert.querySelector('.resbadge');
+    badge.className = 'resbadge resbadge--' + meta.cls;
+    var label = meta.text;
+    if(actKey === 'override' && reasonText){ label = 'Overridden — ' + reasonText; }
+    badge.textContent = '● ' + label;
+    alert.setAttribute('data-resolution', actKey);
+    alert.setAttribute('data-reason', reasonText || '');
+    updateRemaining();
+  }
+
+  // per-alert action delegation
+  alerts.forEach(function(alert){
+    var overrideBox = alert.querySelector('.override');
+    var overrideBtn = alert.querySelector('[data-act="override"]');
+    alert.addEventListener('click', function(e){
+      var btn = e.target.closest('button[data-act]');
+      if(!btn) return;
+      var act = btn.getAttribute('data-act');
+      if(act === 'override'){
+        var open = !overrideBox.hasAttribute('hidden');
+        if(open){ overrideBox.setAttribute('hidden',''); overrideBtn.setAttribute('aria-expanded','false'); }
+        else { overrideBox.removeAttribute('hidden'); overrideBtn.setAttribute('aria-expanded','true'); overrideBox.querySelector('textarea').focus(); }
+      } else if(act === 'override-cancel'){
+        overrideBox.setAttribute('hidden',''); overrideBtn.setAttribute('aria-expanded','false'); overrideBtn.focus();
+      } else if(act === 'override-save'){
+        var ta = overrideBox.querySelector('textarea');
+        if(!ta.value.trim()){ ta.focus(); ta.style.borderColor = 'var(--crit)'; return; }
+        resolveAlert(alert, 'override', ta.value.trim());
+      } else if(act === 'cancel'){
+        resolveAlert(alert, 'cancel');
+      } else if(act === 'modify'){
+        resolveAlert(alert, 'modify');
+      } else if(act === 'accept-dose'){
+        resolveAlert(alert, 'accept-dose');
+      }
+    });
+  });
+
+  function openModal(){
+    lastFocus = document.activeElement;
+    overlay.removeAttribute('hidden');
+    document.body.style.overflow = 'hidden';
+    // focus the dialog then first control
+    dialog.setAttribute('tabindex','-1');
+    dialog.focus();
+    var f = focusables(dialog);
+    if(f.length) f[0].focus();
+  }
+
+  function closeModal(){
+    overlay.setAttribute('hidden','');
+    document.body.style.overflow = '';
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+
+  function buildSummary(){
+    resList.innerHTML = '';
+    alerts.forEach(function(a){
+      var act = a.getAttribute('data-resolution') || 'modify';
+      var reason = a.getAttribute('data-reason') || '';
+      var meta = resTypeMeta[act] || resTypeMeta.modify;
+      var row = document.createElement('div');
+      row.className = 'rline';
+      var badge = '<span class="rt ' + meta.rt + '">' + meta.text + '</span>';
+      var txt = '<span>' + a.getAttribute('data-label');
+      if(act === 'override' && reason){ txt += ' — <em>reason: ' + escapeHtml(reason) + '</em>'; }
+      txt += '</span>';
+      row.innerHTML = badge + txt;
+      resList.appendChild(row);
+    });
+    var now = new Date();
+    sumTime.textContent = now.toLocaleString('en-SG', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'short'});
+  }
+
+  function escapeHtml(s){
+    return s.replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+
+  prescribe.addEventListener('click', openModal);
+  dismissBtn.addEventListener('click', closeModal);
+
+  continueBtn.addEventListener('click', function(){
+    if(continueBtn.disabled) return;
+    buildSummary();
+    closeModal();
+    summary.hidden = false;
+    summary.focus();
+    summary.scrollIntoView({behavior: (window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'), block:'start'});
+  });
+
+  resetBtn.addEventListener('click', function(){
+    // clear resolutions
+    alerts.forEach(function(a){
+      a.classList.remove('resolved');
+      a.removeAttribute('data-resolution'); a.removeAttribute('data-reason');
+      var ta = a.querySelector('textarea'); if(ta){ ta.value=''; ta.style.borderColor=''; }
+      var ob = a.querySelector('.override'); if(ob){ ob.setAttribute('hidden',''); }
+      var obtn = a.querySelector('[data-act="override"]'); if(obtn){ obtn.setAttribute('aria-expanded','false'); }
+    });
+    updateRemaining();
+    summary.hidden = true;
+    prescribe.focus();
+  });
+
+  signBtn.addEventListener('click', function(){
+    signBtn.textContent = '✓ Sent to pharmacy (demo)';
+    signBtn.disabled = true;
+  });
+
+  // keyboard: ESC to close, focus trap
+  document.addEventListener('keydown', function(e){
+    if(overlay.hasAttribute('hidden')) return;
+    if(e.key === 'Escape'){ e.preventDefault(); closeModal(); return; }
+    if(e.key === 'Tab'){
+      var f = focusables(dialog);
+      if(!f.length) return;
+      var first = f[0], last = f[f.length-1];
+      if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+      else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+    }
+  });
+
+  // click on backdrop closes
+  overlay.addEventListener('mousedown', function(e){
+    if(e.target === overlay) closeModal();
+  });
+
+  updateRemaining();
+})();
+</script>
+</body>
+</html>

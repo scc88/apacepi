@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PAXLOVID Dose Companion &amp; 5-Day Tracker — Singapore ePI</title>
+<meta name="description" content="An interactive patient dose companion for PAXLOVID: pick your kidney-function dose, follow a 5-day morning and evening blister-pack schedule, tick doses as taken, and check what to do if you miss one.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    /* audience = Patients (coral) */
+    --accent:#d9603a; --accent-ink:#a8421f; --accent-tint:#fbeae2;
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --pink:#f2b8c6; --pink-ink:#a03a56; --white-pill:#ffffff; --white-ink:#7a8785;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:900px; margin:0 auto; padding:0 16px 48px}
+
+  /* Header bar */
+  .bar{
+    background:var(--surface); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:20;
+  }
+  .bar-in{
+    max-width:900px; margin:0 auto; padding:10px 16px;
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  }
+  .brand{font-family:var(--mono); font-size:13px; letter-spacing:.02em; font-weight:600; color:var(--ink)}
+  .tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    background:var(--accent-tint); color:var(--accent-ink);
+    border:1px solid var(--accent); border-radius:999px; padding:3px 9px; font-weight:600;
+  }
+  .bar-right{margin-left:auto}
+  .epi-link{
+    font-family:var(--mono); font-size:12px; color:var(--accent-ink); text-decoration:none;
+    border:1px solid var(--line); border-radius:999px; padding:5px 11px; background:var(--surface);
+    white-space:nowrap;
+  }
+  .epi-link:hover{background:var(--accent-tint); border-color:var(--accent)}
+
+  /* Hero */
+  .hero{padding:26px 0 8px}
+  .kicker{font-family:var(--mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-ink); margin:0 0 8px}
+  h1{font-family:var(--serif); font-weight:600; font-size:28px; line-height:1.15; margin:0 0 8px}
+  .lede{color:var(--muted); font-size:15px; margin:0; max-width:60ch}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:18px; margin-top:18px;
+  }
+  .card h2{font-family:var(--serif); font-weight:600; font-size:19px; margin:0 0 4px}
+  .card .sub{color:var(--muted); font-size:13.5px; margin:0 0 14px}
+  .lbl{font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); font-weight:600}
+
+  /* Step 1 — regimen selector */
+  .seg{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+  .seg button{
+    flex:1 1 180px; text-align:left; cursor:pointer;
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:12px 13px; font-family:var(--sans); color:var(--ink);
+    transition:border-color .15s, background .15s, box-shadow .15s;
+  }
+  .seg button:hover{border-color:var(--accent)}
+  .seg button[aria-pressed="true"]{
+    border-color:var(--accent); background:var(--accent-tint);
+    box-shadow:0 0 0 2px var(--accent-tint);
+  }
+  .seg .name{display:block; font-weight:600; font-size:15px}
+  .seg .egfr{display:block; font-family:var(--mono); font-size:11px; color:var(--muted); margin-top:2px}
+  .seg .rx{display:block; font-size:12.5px; color:var(--muted); margin-top:6px}
+
+  .alert{
+    display:flex; gap:8px; align-items:flex-start;
+    background:var(--warn-tint); border:1px solid #ecd9a8; color:#7a5510;
+    border-radius:10px; padding:10px 12px; margin-top:12px; font-size:13px;
+  }
+  .alert .i{font-size:15px; line-height:1.3}
+
+  /* Progress */
+  .prog-wrap{margin-top:16px}
+  .prog-top{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap}
+  .prog-count{font-family:var(--serif); font-size:18px; font-weight:600}
+  .prog-count b{color:var(--accent-ink)}
+  .prog-bar{height:12px; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; overflow:hidden; margin-top:8px}
+  .prog-fill{height:100%; width:0; background:linear-gradient(90deg,#e8825f,var(--accent)); border-radius:999px; transition:width .35s ease}
+  .prog-done{color:var(--ok); font-weight:600}
+
+  /* Schedule grid */
+  .sched-scroll{overflow-x:auto; margin-top:4px; -webkit-overflow-scrolling:touch}
+  .sched{width:100%; border-collapse:separate; border-spacing:0; min-width:520px}
+  .sched th, .sched td{padding:0}
+  .sched thead th{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; text-align:center; padding:0 6px 8px; vertical-align:bottom;
+  }
+  .sched thead .slot-h{font-size:13px}
+  .rowlabel{
+    text-align:left; padding:8px 12px 8px 4px; white-space:nowrap; vertical-align:middle;
+  }
+  .rowlabel .d{font-family:var(--serif); font-weight:600; font-size:15px}
+  .rowlabel .dd{font-family:var(--mono); font-size:10.5px; color:var(--faint); text-transform:uppercase; letter-spacing:.06em}
+  .cell{padding:5px}
+  .slot{
+    width:100%; cursor:pointer; text-align:left;
+    background:var(--surface); border:1.5px solid var(--line); border-radius:12px;
+    padding:10px; display:flex; gap:10px; align-items:center; min-height:74px;
+    font-family:var(--sans); color:var(--ink); transition:border-color .15s, background .15s;
+  }
+  .slot:hover{border-color:var(--accent)}
+  .slot .box{
+    flex:0 0 22px; width:22px; height:22px; border-radius:6px; border:2px solid var(--faint);
+    display:flex; align-items:center; justify-content:center; font-size:15px; color:#fff;
+    background:var(--surface); transition:background .15s, border-color .15s;
+  }
+  .slot .pills{flex:1 1 auto; min-width:0}
+  .pillrow{display:flex; flex-wrap:wrap; gap:4px; margin-bottom:3px}
+  .pill{
+    font-family:var(--mono); font-size:11px; font-weight:600; padding:2px 7px; border-radius:999px;
+    border:1px solid var(--line); white-space:nowrap;
+  }
+  .pill.nir{background:var(--pink); color:var(--pink-ink); border-color:#e79aae}
+  .pill.rit{background:var(--white-pill); color:var(--white-ink); border-color:#cfd9d7}
+  .slot .when{font-family:var(--mono); font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--faint)}
+  .slot.taken{background:var(--ok-tint); border-color:#a9d6bd}
+  .slot.taken .box{background:var(--ok); border-color:var(--ok)}
+  .slot.taken .when{color:var(--ok)}
+  .slot.empty{opacity:.55; cursor:default; border-style:dashed}
+  .slot.empty:hover{border-color:var(--line)}
+  .slot.empty .box{visibility:hidden}
+  .slot .none{font-size:12.5px; color:var(--muted); font-style:italic}
+
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin-top:14px; font-size:12.5px; color:var(--muted)}
+  .legend span{display:inline-flex; align-items:center; gap:6px}
+  .dot{width:13px; height:13px; border-radius:4px; display:inline-block; border:1px solid var(--line)}
+  .dot.nir{background:var(--pink); border-color:#e79aae}
+  .dot.rit{background:#fff; border-color:#cfd9d7}
+
+  .btnrow{display:flex; flex-wrap:wrap; gap:10px; margin-top:16px}
+  .btn{
+    cursor:pointer; font-family:var(--sans); font-size:14px; font-weight:600;
+    border-radius:10px; padding:10px 15px; border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  }
+  .btn:hover{border-color:var(--accent)}
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:#fff}
+  .btn.primary:hover{background:var(--accent-ink)}
+  .btn.ghost{background:var(--surface)}
+
+  /* Two-up helper cards */
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-top:18px}
+  @media (max-width:640px){ .grid2{grid-template-columns:1fr} }
+  .mini h3{font-family:var(--serif); font-size:16px; margin:0 0 6px; display:flex; align-items:center; gap:8px}
+  .mini p{font-size:13.5px; color:var(--muted); margin:6px 0 0}
+  .mini .em{color:var(--ink); font-weight:600}
+
+  /* Missed-dose modal/flow */
+  .flow{margin-top:12px; border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--surface-2)}
+  .flow[hidden]{display:none}
+  .q{font-family:var(--serif); font-size:16px; font-weight:600; margin:0 0 10px}
+  .flow .btnrow{margin-top:0}
+  .verdict{margin-top:12px; border-radius:10px; padding:12px 14px; font-size:14px}
+  .verdict[hidden]{display:none}
+  .verdict.now{background:var(--ok-tint); border:1px solid #a9d6bd; color:#1c5638}
+  .verdict.skip{background:var(--warn-tint); border:1px solid #ecd9a8; color:#7a5510}
+  .verdict .vt{font-weight:700; display:block; margin-bottom:3px}
+  .never{margin-top:10px; font-size:13px; color:var(--crit); font-weight:600; display:flex; gap:7px; align-items:flex-start}
+
+  .factstrip{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .fact{
+    font-family:var(--mono); font-size:11.5px; color:var(--muted);
+    background:var(--surface-2); border:1px solid var(--line); border-radius:999px; padding:5px 11px;
+  }
+
+  footer{margin-top:26px; border-top:1px solid var(--line); padding-top:16px}
+  .disc{font-size:12px; color:var(--faint); max-width:78ch; line-height:1.55}
+  .disc code{font-family:var(--mono); font-size:11px}
+
+  :focus-visible{outline:3px solid var(--accent); outline-offset:2px; border-radius:8px}
+  .sr{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0}
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important; scroll-behavior:auto !important}
+  }
+  @media (max-width:480px){
+    h1{font-size:24px}
+    .wrap{padding:0 12px 40px}
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="bar-in">
+    <span class="brand">PAXLOVID · Singapore ePI</span>
+    <span class="tag">Patient view</span>
+    <span class="bar-right">
+      <a class="epi-link" href="../sg-epi-pilot.html" target="_top">↩ ePI Pilot</a>
+    </span>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <header class="hero">
+    <p class="kicker">Dose companion · 5-day tracker</p>
+    <h1>Your PAXLOVID blister pack, on screen</h1>
+    <p class="lede">Pick the dose your doctor set for your kidney function, then follow your 5 daily cards — morning ☀ and evening 🌙. Tick each dose as you take it and watch your course fill up.</p>
+  </header>
+
+  <!-- STEP 1 -->
+  <section class="card" aria-labelledby="s1">
+    <h2 id="s1">1 · Which dose did your doctor set?</h2>
+    <p class="sub">This depends on your kidney function (eGFR). If you are unsure, ask your doctor or pharmacist — do not guess.</p>
+    <div class="seg" role="group" aria-label="Select your dose regimen">
+      <button type="button" data-reg="none" aria-pressed="true">
+        <span class="name">No / mild impairment</span>
+        <span class="egfr">eGFR ≥ 60</span>
+        <span class="rx">2 pink + 1 white, twice a day</span>
+      </button>
+      <button type="button" data-reg="moderate" aria-pressed="false">
+        <span class="name">Moderate impairment</span>
+        <span class="egfr">eGFR ≥ 30 to &lt; 60</span>
+        <span class="rx">1 pink + 1 white, twice a day</span>
+      </button>
+      <button type="button" data-reg="severe" aria-pressed="false">
+        <span class="name">Severe impairment</span>
+        <span class="egfr">eGFR &lt; 30 · incl. dialysis</span>
+        <span class="rx">Once a day (Day 1 is larger)</span>
+      </button>
+    </div>
+    <div class="alert" id="regAlert" role="note">
+      <span class="i">💊</span>
+      <span id="regAlertText"></span>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section class="card" aria-labelledby="s2">
+    <h2 id="s2">2 · Your 5-day schedule</h2>
+    <p class="sub" id="schedSub"></p>
+
+    <div class="prog-wrap">
+      <div class="prog-top">
+        <span class="prog-count"><b id="doneN">0</b> of <span id="totalN">10</span> doses taken</span>
+        <span class="lbl" id="progPct">0% complete</span>
+      </div>
+      <div class="prog-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="Course progress">
+        <div class="prog-fill" id="progFill"></div>
+      </div>
+      <p class="prog-done" id="progDone" hidden>🎉 Course complete — well done. Finish only if your doctor said so.</p>
+    </div>
+
+    <div class="sched-scroll">
+      <table class="sched" id="schedTable">
+        <thead>
+          <tr>
+            <th scope="col"><span class="sr">Day</span></th>
+            <th scope="col" class="slot-h">☀ Morning</th>
+            <th scope="col" class="slot-h">🌙 Evening</th>
+          </tr>
+        </thead>
+        <tbody id="schedBody"><!-- built by JS --></tbody>
+      </table>
+    </div>
+
+    <div class="legend" aria-hidden="true">
+      <span><i class="dot nir"></i> Nirmatrelvir 150 mg (pink)</span>
+      <span><i class="dot rit"></i> Ritonavir 100 mg (white)</span>
+      <span>✓ = taken</span>
+    </div>
+
+    <div class="btnrow">
+      <button type="button" class="btn ghost" id="resetBtn">↺ Reset ticks</button>
+    </div>
+  </section>
+
+  <!-- Helpers -->
+  <div class="grid2">
+
+    <section class="card mini" aria-labelledby="miss">
+      <h3 id="miss">⏱ Missed a dose?</h3>
+      <p>It happens. Answer one question and we'll tell you what the label says to do.</p>
+      <div class="btnrow">
+        <button type="button" class="btn primary" id="missStart">Check what to do</button>
+      </div>
+
+      <div class="flow" id="missFlow" hidden>
+        <p class="q">How long ago was that dose <em>due</em>?</p>
+        <div class="btnrow">
+          <button type="button" class="btn" data-miss="within">Within 8 hours</button>
+          <button type="button" class="btn" data-miss="over">More than 8 hours</button>
+        </div>
+
+        <div class="verdict now" id="verdictNow" hidden>
+          <span class="vt">✔ Take it now</span>
+          Take the missed dose as soon as you remember, then carry on with your normal schedule.
+        </div>
+        <div class="verdict skip" id="verdictSkip" hidden>
+          <span class="vt">→ Skip it</span>
+          Skip the missed dose. Take your next dose at the usual time.
+        </div>
+
+        <p class="never">⚠ <span>Never take two doses at once to make up for a missed one.</span></p>
+      </div>
+    </section>
+
+    <section class="card mini" aria-labelledby="rem">
+      <h3 id="rem">🔔 Little reminders</h3>
+      <p><span class="em">Set two alarms</span> — one for the morning and one for the evening — so a dose is never missed.</p>
+      <p><span class="em">Swallow whole</span> with or without food. Don't chew or crush the tablets.</p>
+      <p><span class="em">Storage:</span> keep the pack at or below <span class="em">30 °C</span>. Do not refrigerate or freeze.</p>
+      <div class="factstrip" aria-hidden="true">
+        <span class="fact">30 tablets</span>
+        <span class="fact">5 daily cards</span>
+        <span class="fact">☀ morning</span>
+        <span class="fact">🌙 evening</span>
+        <span class="fact">5-day course</span>
+      </div>
+    </section>
+
+  </div>
+
+  <footer>
+    <p class="disc">
+      Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by
+      the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are
+      placeholders to be confirmed with HSA. Data simplified for demonstration.
+    </p>
+  </footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Regimen data. Each day = {am:[nir,rit], pm:[nir,rit]|null}
+  var REGIMENS = {
+    none: {
+      label: "No / mild impairment (eGFR ≥ 60)",
+      alert: "Take 2 pink (nirmatrelvir 150 mg) + 1 white (ritonavir 100 mg) tablets twice a day for 5 days.",
+      sub: "2 pink + 1 white every morning and every evening, for 5 days.",
+      day: function(){ return {am:[2,1], pm:[2,1]}; }
+    },
+    moderate: {
+      label: "Moderate impairment (eGFR ≥ 30 to < 60)",
+      alert: "Take 1 pink + 1 white tablet twice a day. Your pack may contain more tablets than you need — only take the dose shown here.",
+      sub: "1 pink + 1 white every morning and every evening, for 5 days.",
+      day: function(){ return {am:[1,1], pm:[1,1]}; }
+    },
+    severe: {
+      label: "Severe impairment (eGFR < 30, including haemodialysis)",
+      alert: "Take your dose ONCE a day. Day 1 is larger (2 pink + 1 white); Days 2–5 are 1 pink + 1 white. On dialysis days, take the dose AFTER haemodialysis. Your pack may contain more tablets than you need.",
+      sub: "One dose per day. Day 1: 2 pink + 1 white. Days 2–5: 1 pink + 1 white. No second (evening) dose.",
+      day: function(d){ return { am: (d===1 ? [2,1] : [1,1]), pm:null }; }
+    }
+  };
+
+  var DAYS = [1,2,3,4,5];
+  var DAY_SUB = {1:"Start today", 2:"", 3:"", 4:"", 5:"Last day"};
+
+  var state = { reg:"none", taken:{} }; // taken keyed "d-am"/"d-pm"
+
+  var body = document.getElementById("schedBody");
+  var segBtns = Array.prototype.slice.call(document.querySelectorAll(".seg button"));
+  var regAlertText = document.getElementById("regAlertText");
+  var schedSub = document.getElementById("schedSub");
+
+  function pillHTML(nir, rit){
+    var out = "";
+    if(nir>0) out += '<span class="pill nir">'+nir+' × pink</span>';
+    if(rit>0) out += '<span class="pill rit">'+rit+' × white</span>';
+    return out;
+  }
+
+  function slotHTML(dayNum, when, dose){
+    var key = dayNum + "-" + when;
+    var whenLabel = when==="am" ? "☀ Morning" : "🌙 Evening";
+    if(!dose){
+      return '<button type="button" class="slot empty" disabled aria-label="Day '+dayNum+' '+ (when==="am"?"morning":"evening") +': no dose">'
+           + '<span class="box"></span>'
+           + '<span class="pills"><span class="none">No dose today</span></span>'
+           + '</button>';
+    }
+    var isTaken = !!state.taken[key];
+    var aria = "Day "+dayNum+" "+(when==="am"?"morning":"evening")+": "
+             + dose[0]+" pink and "+dose[1]+" white tablets. "
+             + (isTaken? "Taken. Activate to mark as not taken." : "Not taken. Activate to mark as taken.");
+    return '<button type="button" class="slot'+(isTaken?" taken":"")+'" data-key="'+key+'" aria-pressed="'+isTaken+'" aria-label="'+aria+'">'
+         + '<span class="box" aria-hidden="true">'+(isTaken?"✓":"")+'</span>'
+         + '<span class="pills"><span class="when">'+whenLabel+'</span>'
+         + '<span class="pillrow">'+pillHTML(dose[0],dose[1])+'</span></span>'
+         + '</button>';
+  }
+
+  function build(){
+    var reg = REGIMENS[state.reg];
+    regAlertText.textContent = reg.alert;
+    schedSub.textContent = reg.sub;
+
+    var html = "";
+    DAYS.forEach(function(d){
+      var dose = reg.day(d);
+      var ddText = DAY_SUB[d] || "";
+      html += "<tr>"
+            + '<th scope="row" class="rowlabel"><span class="d">Day '+d+'</span>'
+            + (ddText? '<span class="dd">'+ddText+'</span>' : "")
+            + "</th>"
+            + '<td class="cell">'+slotHTML(d,"am",dose.am)+'</td>'
+            + '<td class="cell">'+slotHTML(d,"pm",dose.pm)+'</td>'
+            + "</tr>";
+    });
+    body.innerHTML = html;
+    updateProgress();
+  }
+
+  function totalDoses(){
+    var reg = REGIMENS[state.reg], n=0;
+    DAYS.forEach(function(d){
+      var dose = reg.day(d);
+      if(dose.am) n++;
+      if(dose.pm) n++;
+    });
+    return n;
+  }
+
+  function updateProgress(){
+    var total = totalDoses();
+    var done = 0;
+    // only count ticks that are valid for current regimen
+    var reg = REGIMENS[state.reg];
+    DAYS.forEach(function(d){
+      var dose = reg.day(d);
+      if(dose.am && state.taken[d+"-am"]) done++;
+      if(dose.pm && state.taken[d+"-pm"]) done++;
+    });
+    var pct = total? Math.round(done/total*100) : 0;
+    document.getElementById("doneN").textContent = done;
+    document.getElementById("totalN").textContent = total;
+    document.getElementById("progPct").textContent = pct + "% complete";
+    var fill = document.getElementById("progFill");
+    fill.style.width = pct + "%";
+    var barEl = document.querySelector(".prog-bar");
+    barEl.setAttribute("aria-valuenow", pct);
+    document.getElementById("progDone").hidden = !(total>0 && done===total);
+  }
+
+  // Regimen selection
+  segBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.reg = btn.getAttribute("data-reg");
+      state.taken = {}; // reset ticks on regimen change
+      segBtns.forEach(function(b){ b.setAttribute("aria-pressed", b===btn ? "true":"false"); });
+      build();
+    });
+  });
+
+  // Slot ticking (event delegation)
+  body.addEventListener("click", function(e){
+    var slot = e.target.closest(".slot");
+    if(!slot || slot.classList.contains("empty")) return;
+    var key = slot.getAttribute("data-key");
+    if(!key) return;
+    var now = !state.taken[key];
+    state.taken[key] = now;
+    slot.classList.toggle("taken", now);
+    slot.setAttribute("aria-pressed", now ? "true":"false");
+    slot.querySelector(".box").textContent = now ? "✓" : "";
+    updateProgress();
+  });
+
+  document.getElementById("resetBtn").addEventListener("click", function(){
+    state.taken = {};
+    build();
+  });
+
+  // Missed-dose flow
+  var missFlow = document.getElementById("missFlow");
+  var vNow = document.getElementById("verdictNow");
+  var vSkip = document.getElementById("verdictSkip");
+  document.getElementById("missStart").addEventListener("click", function(){
+    var showing = !missFlow.hidden;
+    missFlow.hidden = showing;
+    this.textContent = showing ? "Check what to do" : "Close";
+    if(!showing){ vNow.hidden = true; vSkip.hidden = true; }
+  });
+  Array.prototype.slice.call(missFlow.querySelectorAll("[data-miss]")).forEach(function(b){
+    b.addEventListener("click", function(){
+      var within = b.getAttribute("data-miss")==="within";
+      vNow.hidden = !within;
+      vSkip.hidden = within;
+    });
+  });
+
+  build();
+})();
+</script>
+</body>
+</html>

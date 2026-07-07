@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ePI Version Diff &amp; Change Tracking — PAXLOVID Singapore ePI (HSA / Regulator)</title>
+<meta name="description" content="Automated section-by-section redline between two structured FHIR ePI versions of PAXLOVID (Singapore), for HSA regulatory review. Because sections are coded, review becomes a diff — not a manual page-by-page re-read.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#574fd6; --accent-ink:#3a33a8; --accent-tint:#ecebfb;   /* HSA / Regulator indigo */
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --del:#c0392b; --del-bg:#fbe7e4; --ins:#2f855a; --ins-bg:#e4f3ea;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.5; -webkit-text-size-adjust:100%;
+  }
+  a{color:var(--accent-ink)}
+
+  /* header bar */
+  .topbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    background:var(--surface); border-bottom:1px solid var(--line);
+    padding:10px 16px; position:sticky; top:0; z-index:20;
+  }
+  .brand{font-family:var(--serif); font-weight:600; font-size:15px; letter-spacing:.2px}
+  .brand .dot{color:var(--faint); margin:0 4px}
+  .tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--accent-ink); background:var(--accent-tint);
+    border:1px solid #d5d2f4; border-radius:999px; padding:3px 9px; font-weight:600;
+  }
+  .topbar .spacer{flex:1 1 auto}
+  .backlink{
+    font-family:var(--mono); font-size:12px; letter-spacing:.03em; text-decoration:none;
+    color:var(--accent-ink); background:var(--accent-tint); border:1px solid #d5d2f4;
+    border-radius:999px; padding:5px 11px; white-space:nowrap;
+  }
+  .backlink:hover{background:#e0defa}
+
+  .wrap{max-width:960px; margin:0 auto; padding:20px 16px 40px}
+
+  .lede{font-family:var(--serif); font-size:22px; line-height:1.28; margin:6px 0 4px}
+  .sub{color:var(--muted); margin:0 0 18px; font-size:14.5px; max-width:64ch}
+
+  /* version compare banner */
+  .versions{
+    display:flex; gap:12px; flex-wrap:wrap; margin:0 0 18px;
+  }
+  .vcard{
+    flex:1 1 220px; background:var(--surface); border:1px solid var(--line);
+    border-radius:12px; padding:12px 14px;
+  }
+  .vcard h3{margin:0 0 4px; font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+    text-transform:uppercase; color:var(--faint); font-weight:700}
+  .vcard .vid{font-family:var(--mono); font-size:14px; font-weight:600; color:var(--ink)}
+  .vcard .vmeta{font-size:12.5px; color:var(--muted); margin-top:3px}
+  .vcard.v2{border-color:#d5d2f4; background:linear-gradient(0deg,var(--accent-tint),var(--surface))}
+  .illus{
+    display:inline-block; margin-top:8px; font-family:var(--mono); font-size:10.5px;
+    letter-spacing:.05em; text-transform:uppercase; font-weight:700;
+    color:var(--warn); background:var(--warn-tint); border:1px solid #ecd9a8;
+    border-radius:6px; padding:2px 7px;
+  }
+  .arrow{align-self:center; color:var(--faint); font-size:20px; font-weight:700; flex:0 0 auto}
+
+  /* summary + controls */
+  .panel{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:14px 16px; margin:0 0 16px;
+  }
+  .summary{
+    display:flex; align-items:center; gap:10px 16px; flex-wrap:wrap;
+    font-family:var(--mono); font-size:13px; color:var(--ink);
+  }
+  .summary .n{font-weight:700}
+  .summary .s-changed{color:var(--warn)}
+  .summary .s-added{color:var(--ok)}
+  .summary .s-removed{color:var(--crit)}
+  .summary .s-unchanged{color:var(--muted)}
+
+  .controls{display:flex; flex-direction:column; gap:12px; margin-top:14px}
+  .ctl-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .ctl-label{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--faint); font-weight:700; margin-right:2px;
+  }
+  button{font-family:var(--sans); cursor:pointer}
+  .chip{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.02em;
+    background:var(--surface); color:var(--muted); border:1px solid var(--line);
+    border-radius:999px; padding:6px 12px; display:inline-flex; align-items:center; gap:6px;
+  }
+  .chip .cnt{font-size:11px; color:var(--faint)}
+  .chip:hover{border-color:#c3d0cf}
+  .chip[aria-pressed="true"]{
+    background:var(--accent-tint); border-color:#c3bff0; color:var(--accent-ink); font-weight:600;
+  }
+  .chip[aria-pressed="true"] .cnt{color:var(--accent-ink)}
+  .seg{display:inline-flex; border:1px solid var(--line); border-radius:999px; overflow:hidden; background:var(--surface)}
+  .seg button{
+    font-family:var(--mono); font-size:12.5px; letter-spacing:.02em; color:var(--muted);
+    background:transparent; border:0; padding:6px 14px;
+  }
+  .seg button[aria-pressed="true"]{background:var(--accent); color:#fff; font-weight:600}
+  .seg button+button{border-left:1px solid var(--line)}
+
+  :focus-visible{outline:2.5px solid var(--accent); outline-offset:2px; border-radius:6px}
+
+  /* diff list */
+  .difflist{display:flex; flex-direction:column; gap:12px}
+  .row{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    overflow:hidden;
+  }
+  .row.added{border-left:4px solid var(--ok)}
+  .row.changed{border-left:4px solid var(--warn)}
+  .row.removed{border-left:4px solid var(--crit)}
+  .row.unchanged{border-left:4px solid var(--line)}
+  .rhead{
+    display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+    padding:11px 14px; background:var(--surface-2); border-bottom:1px solid var(--line);
+  }
+  .row.unchanged .rhead{background:var(--surface); border-bottom:0}
+  .scode{font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent-ink);
+    background:var(--accent-tint); border-radius:6px; padding:2px 7px}
+  .stitle{font-family:var(--serif); font-size:15.5px; font-weight:600}
+  .rhead .spacer{flex:1 1 auto}
+  .status{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.06em; text-transform:uppercase;
+    font-weight:700; border-radius:6px; padding:3px 8px; display:inline-flex; align-items:center; gap:4px;
+    white-space:nowrap;
+  }
+  .status.added{color:var(--ok); background:var(--ok-tint); border:1px solid #bfe0cc}
+  .status.changed{color:var(--warn); background:var(--warn-tint); border:1px solid #ecd9a8}
+  .status.removed{color:var(--crit); background:var(--crit-tint); border:1px solid #eec4bd}
+  .status.unchanged{color:var(--muted); background:var(--surface-2); border:1px solid var(--line)}
+  .status .glyph{font-size:12px; line-height:1}
+
+  .rbody{padding:12px 14px 14px}
+  .rbody.pad-none{padding:0}
+
+  /* unified & split blocks */
+  .block{}
+  .block+.block{margin-top:12px}
+  .blabel{
+    font-family:var(--mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+    color:var(--faint); font-weight:700; margin-bottom:5px;
+  }
+  .txt{font-size:14.5px; line-height:1.6}
+  .txt.old{color:var(--muted)}
+  del.d{background:var(--del-bg); color:var(--del); text-decoration:line-through; padding:0 2px; border-radius:3px}
+  ins.i{background:var(--ins-bg); color:var(--ins); text-decoration:none; padding:0 2px; border-radius:3px}
+  del.d::before{content:"\2212"; font-family:var(--mono); font-size:11px; margin-right:2px; font-weight:700; text-decoration:none; display:inline-block}
+  ins.i::before{content:"+"; font-family:var(--mono); font-size:11px; margin-right:2px; font-weight:700; display:inline-block}
+
+  .addedbox, .removedbox{border-radius:8px; padding:10px 12px}
+  .addedbox{background:var(--ins-bg); border:1px solid #bfe0cc}
+  .removedbox{background:var(--del-bg); border:1px solid #eec4bd}
+  .boxtag{font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; font-weight:700; margin-bottom:5px; display:inline-flex; gap:4px; align-items:center}
+  .addedbox .boxtag{color:var(--ins)}
+  .removedbox .boxtag{color:var(--del)}
+  .unch-note{font-size:13.5px; color:var(--muted); padding:12px 14px; display:flex; align-items:center; gap:8px}
+
+  /* split view */
+  .split{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+  .split .pane{border:1px solid var(--line); border-radius:8px; padding:10px 12px; background:var(--surface)}
+  .split .pane.oldpane{background:#fdfafa}
+  .split .pane.newpane{background:#fbfdfb}
+  .split .pane .plab{font-family:var(--mono); font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:var(--faint); font-weight:700; margin-bottom:6px}
+  .empty{color:var(--faint); font-style:italic; font-size:13px}
+
+  .diff-scroll{overflow-x:auto}
+
+  .hidden{display:none !important}
+  .norows{padding:22px; text-align:center; color:var(--muted); font-size:14px}
+
+  /* legend */
+  .legend{display:flex; gap:14px; flex-wrap:wrap; font-family:var(--mono); font-size:11.5px; color:var(--muted); margin-top:4px}
+  .legend span{display:inline-flex; align-items:center; gap:5px}
+  .swatch{width:12px; height:12px; border-radius:3px; display:inline-block; border:1px solid rgba(0,0,0,.12)}
+
+  footer{
+    margin-top:26px; padding-top:14px; border-top:1px solid var(--line);
+    font-size:11.5px; line-height:1.55; color:var(--muted);
+  }
+
+  @media (max-width:560px){
+    .split{grid-template-columns:1fr}
+    .lede{font-size:20px}
+    .rhead .status{margin-top:0}
+  }
+  @media (prefers-reduced-motion:no-preference){
+    .row{transition:opacity .18s ease}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <span class="brand">PAXLOVID<span class="dot">·</span>Singapore ePI</span>
+  <span class="tag">HSA / Regulator view</span>
+  <span class="spacer"></span>
+  <a class="backlink" href="../sg-epi-pilot.html" target="_top">&#8617; ePI Pilot</a>
+</header>
+
+<main class="wrap">
+  <h1 class="lede">Version diff &amp; change tracking</h1>
+  <p class="sub">Because every section is structured and coded in the FHIR ePI, regulatory review becomes an
+    automated redline — not a manual page-by-page re-read. Below, each section is compared and tagged
+    <strong>ADDED</strong>, <strong>CHANGED</strong>, <strong>REMOVED</strong> or <strong>UNCHANGED</strong>.</p>
+
+  <div class="versions">
+    <div class="vcard v1">
+      <h3>Baseline · reference ePI</h3>
+      <div class="vid">PAXH-SIN-0126/0</div>
+      <div class="vmeta">SmPC Composition · Rev January 2026 (real reference)</div>
+    </div>
+    <div class="arrow" aria-hidden="true">&rarr;</div>
+    <div class="vcard v2">
+      <h3>Proposed · next ePI</h3>
+      <div class="vid">PAXH-SIN-0126/1</div>
+      <div class="vmeta">Submitted for HSA review</div>
+      <span class="illus">&#9888; Illustrative next version — sample changes</span>
+    </div>
+  </div>
+
+  <section class="panel" aria-label="Change summary and controls">
+    <div class="summary" role="status" aria-live="polite" id="summary">
+      <span class="s-changed"><span class="n" id="c-changed">3</span> changed</span>
+      <span aria-hidden="true">&middot;</span>
+      <span class="s-added"><span class="n" id="c-added">1</span> added</span>
+      <span aria-hidden="true">&middot;</span>
+      <span class="s-removed"><span class="n" id="c-removed">0</span> removed</span>
+      <span aria-hidden="true">&middot;</span>
+      <span class="s-unchanged"><span class="n" id="c-unchanged">1</span> unchanged</span>
+      <span aria-hidden="true">&middot;</span>
+      <span>across <span class="n" id="c-total">5</span> sections shown</span>
+    </div>
+
+    <div class="controls">
+      <div class="ctl-row" role="group" aria-label="View mode">
+        <span class="ctl-label">View</span>
+        <div class="seg">
+          <button type="button" id="view-unified" aria-pressed="true">Unified</button>
+          <button type="button" id="view-split" aria-pressed="false">Split</button>
+        </div>
+      </div>
+      <div class="ctl-row" role="group" aria-label="Filter sections by change type">
+        <span class="ctl-label">Filter</span>
+        <button type="button" class="chip" data-filter="all" aria-pressed="true">All <span class="cnt" data-cnt="all">5</span></button>
+        <button type="button" class="chip" data-filter="added" aria-pressed="false">+ Added <span class="cnt" data-cnt="added">1</span></button>
+        <button type="button" class="chip" data-filter="changed" aria-pressed="false">&#916; Changed <span class="cnt" data-cnt="changed">3</span></button>
+        <button type="button" class="chip" data-filter="removed" aria-pressed="false">&#8722; Removed <span class="cnt" data-cnt="removed">0</span></button>
+        <button type="button" class="chip" data-filter="unchanged" aria-pressed="false">= Unchanged <span class="cnt" data-cnt="unchanged">1</span></button>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><span class="swatch" style="background:var(--ins-bg);border-color:#bfe0cc"></span> + added text</span>
+        <span><span class="swatch" style="background:var(--del-bg);border-color:#eec4bd"></span> &#8722; removed text</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="diff-scroll">
+  <div class="difflist" id="difflist">
+
+    <!-- §4.3 CONTRAINDICATIONS — ADDED entry -->
+    <article class="row changed" data-type="changed" tabindex="-1">
+      <div class="rhead">
+        <span class="scode">§4.3</span>
+        <span class="stitle">Contraindications</span>
+        <span class="spacer"></span>
+        <span class="status changed"><span class="glyph" aria-hidden="true">&#916;</span> Changed</span>
+      </div>
+      <div class="rbody">
+        <div class="view-unified">
+          <p class="txt">The contraindicated-medicines list gains one entry (new co-packaged CYP3A note):</p>
+          <div class="addedbox">
+            <div class="boxtag"><span aria-hidden="true">+</span> ADDED to &ldquo;Do not take with&rdquo;</div>
+            <div class="txt"><ins class="i">suzetrigine (Non-opioid analgesic)</ins></div>
+          </div>
+        </div>
+        <div class="view-split hidden">
+          <div class="split">
+            <div class="pane oldpane">
+              <div class="plab">Baseline v0</div>
+              <div class="txt old">&hellip; finerenone (kidney disease), naloxegol (opioid constipation) &hellip;<br><span class="empty">(suzetrigine not present)</span></div>
+            </div>
+            <div class="pane newpane">
+              <div class="plab">Proposed v1</div>
+              <div class="txt">&hellip; finerenone (kidney disease), <ins class="i">suzetrigine (Non-opioid analgesic)</ins>, naloxegol (opioid constipation) &hellip;</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- §4.2 POSOLOGY — CHANGED footnote -->
+    <article class="row changed" data-type="changed" tabindex="-1">
+      <div class="rhead">
+        <span class="scode">§4.2</span>
+        <span class="stitle">Posology &amp; method of administration</span>
+        <span class="spacer"></span>
+        <span class="status changed"><span class="glyph" aria-hidden="true">&#916;</span> Changed</span>
+      </div>
+      <div class="rbody">
+        <div class="view-unified">
+          <p class="txt">Footnote on the moderate-renal-impairment pack surplus reworded:</p>
+          <p class="txt">For moderate renal impairment (eGFR &#8805;30 to &lt;60): 1 nirmatrelvir + 1 ritonavir twice daily for 5 days. <del class="d">The pack may contain more tablets than needed.</del> <ins class="i">This pack contains more tablets than required for a moderate-renal-impairment course; discard the surplus tablets safely.</ins></p>
+        </div>
+        <div class="view-split hidden">
+          <div class="split">
+            <div class="pane oldpane">
+              <div class="plab">Baseline v0</div>
+              <div class="txt old">&hellip; 1 nirmatrelvir + 1 ritonavir twice daily for 5 days. <del class="d">The pack may contain more tablets than needed.</del></div>
+            </div>
+            <div class="pane newpane">
+              <div class="plab">Proposed v1</div>
+              <div class="txt">&hellip; 1 nirmatrelvir + 1 ritonavir twice daily for 5 days. <ins class="i">This pack contains more tablets than required for a moderate-renal-impairment course; discard the surplus tablets safely.</ins></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- §4.8 UNDESIRABLE EFFECTS — ADDED note -->
+    <article class="row added" data-type="added" tabindex="-1">
+      <div class="rhead">
+        <span class="scode">§4.8</span>
+        <span class="stitle">Undesirable effects</span>
+        <span class="spacer"></span>
+        <span class="status added"><span class="glyph" aria-hidden="true">+</span> Added</span>
+      </div>
+      <div class="rbody">
+        <div class="view-unified">
+          <p class="txt">A new rare adverse-effect note is introduced (illustrative):</p>
+          <div class="addedbox">
+            <div class="boxtag"><span aria-hidden="true">+</span> ADDED &mdash; Rare (up to 1 in 1,000)</div>
+            <div class="txt"><ins class="i">Acute generalised exanthematous pustulosis (AGEP) &mdash; a rare pustular skin reaction; discontinue and seek medical advice.</ins></div>
+          </div>
+        </div>
+        <div class="view-split hidden">
+          <div class="split">
+            <div class="pane oldpane">
+              <div class="plab">Baseline v0</div>
+              <div class="txt old"><span class="empty">No corresponding entry &mdash; note not present in baseline.</span></div>
+            </div>
+            <div class="pane newpane">
+              <div class="plab">Proposed v1</div>
+              <div class="txt">Rare (up to 1 in 1,000): &hellip; <ins class="i">Acute generalised exanthematous pustulosis (AGEP) &mdash; a rare pustular skin reaction; discontinue and seek medical advice.</ins></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- §5.1 — UNCHANGED -->
+    <article class="row unchanged" data-type="unchanged" tabindex="-1">
+      <div class="rhead">
+        <span class="scode">§5.1</span>
+        <span class="stitle">Pharmacodynamic properties</span>
+        <span class="spacer"></span>
+        <span class="status unchanged"><span class="glyph" aria-hidden="true">=</span> Unchanged</span>
+      </div>
+      <div class="rbody pad-none">
+        <div class="unch-note"><span aria-hidden="true">=</span> No change detected. Section content is byte-identical between v0 and v1 &mdash; no reviewer action required.</div>
+      </div>
+    </article>
+
+    <!-- §6.4 STORAGE — CHANGED -->
+    <article class="row changed" data-type="changed" tabindex="-1">
+      <div class="rhead">
+        <span class="scode">§6.4</span>
+        <span class="stitle">Special precautions for storage</span>
+        <span class="spacer"></span>
+        <span class="status changed"><span class="glyph" aria-hidden="true">&#916;</span> Changed</span>
+      </div>
+      <div class="rbody">
+        <div class="view-unified">
+          <p class="txt">Storage temperature limit tightened (illustrative):</p>
+          <p class="txt">Store at or below <del class="d">30&nbsp;&deg;C</del><ins class="i">25&nbsp;&deg;C</ins>. Do not refrigerate or freeze.</p>
+        </div>
+        <div class="view-split hidden">
+          <div class="split">
+            <div class="pane oldpane">
+              <div class="plab">Baseline v0</div>
+              <div class="txt old">Store at or below <del class="d">30&nbsp;&deg;C</del>. Do not refrigerate or freeze.</div>
+            </div>
+            <div class="pane newpane">
+              <div class="plab">Proposed v1</div>
+              <div class="txt">Store <ins class="i">below 25&nbsp;&deg;C</ins>. Do not refrigerate or freeze.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <p class="norows hidden" id="norows">No sections match this filter.</p>
+  </div>
+  </div>
+
+  <footer>
+    Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by
+    the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are
+    placeholders to be confirmed with HSA. Data simplified for demonstration.
+  </footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+  var list = document.getElementById('difflist');
+  var rows = Array.prototype.slice.call(list.querySelectorAll('.row'));
+  var norows = document.getElementById('norows');
+
+  // ---- View toggle (Unified / Split) ----
+  var btnUnified = document.getElementById('view-unified');
+  var btnSplit = document.getElementById('view-split');
+
+  function setView(mode){
+    var split = (mode === 'split');
+    btnUnified.setAttribute('aria-pressed', String(!split));
+    btnSplit.setAttribute('aria-pressed', String(split));
+    document.querySelectorAll('.view-unified').forEach(function(el){ el.classList.toggle('hidden', split); });
+    document.querySelectorAll('.view-split').forEach(function(el){ el.classList.toggle('hidden', !split); });
+  }
+  btnUnified.addEventListener('click', function(){ setView('unified'); });
+  btnSplit.addEventListener('click', function(){ setView('split'); });
+
+  // ---- Filter chips ----
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip'));
+
+  function applyFilter(type){
+    chips.forEach(function(c){ c.setAttribute('aria-pressed', String(c.getAttribute('data-filter') === type)); });
+    var visible = 0;
+    rows.forEach(function(r){
+      var show = (type === 'all') || (r.getAttribute('data-type') === type);
+      r.classList.toggle('hidden', !show);
+      if(show) visible++;
+    });
+    norows.classList.toggle('hidden', visible !== 0);
+  }
+
+  chips.forEach(function(c){
+    c.addEventListener('click', function(){ applyFilter(c.getAttribute('data-filter')); });
+  });
+
+  // ---- Derive counts from the DOM so summary stays truthful ----
+  var counts = {all: rows.length, added:0, changed:0, removed:0, unchanged:0};
+  rows.forEach(function(r){ var t = r.getAttribute('data-type'); if(counts[t] !== undefined) counts[t]++; });
+  document.getElementById('c-changed').textContent = counts.changed;
+  document.getElementById('c-added').textContent = counts.added;
+  document.getElementById('c-removed').textContent = counts.removed;
+  document.getElementById('c-unchanged').textContent = counts.unchanged;
+  document.getElementById('c-total').textContent = counts.all;
+  document.querySelectorAll('.cnt').forEach(function(el){
+    var k = el.getAttribute('data-cnt'); if(counts[k] !== undefined) el.textContent = counts[k];
+  });
+
+  // init
+  setView('unified');
+  applyFilter('all');
+})();
+</script>
+</body>
+</html>

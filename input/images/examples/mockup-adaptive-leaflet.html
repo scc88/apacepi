@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My PAXLOVID Leaflet — Adaptive Patient ePI · Singapore</title>
+<meta name="description" content="An adaptive patient leaflet for PAXLOVID that personalises itself to your kidney function, pregnancy status and current medicines — the same published Singapore ePI, filtered to you.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#d9603a; --accent-ink:#a5401f; --accent-tint:#fbeae2;
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc;
+    --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-ink)}
+
+  /* Header */
+  .topbar{
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:10px 16px; background:var(--surface);
+    border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20;
+  }
+  .brand{font-family:var(--mono); font-size:13px; font-weight:600; letter-spacing:.02em; color:var(--ink)}
+  .tag{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+    padding:3px 8px; border-radius:999px; background:var(--accent-tint); color:var(--accent-ink);
+    border:1px solid #f0cdbc; font-weight:600;
+  }
+  .topbar .spacer{flex:1 1 auto}
+  .pilot-link{
+    font-family:var(--mono); font-size:12px; text-decoration:none; color:var(--muted);
+    padding:5px 9px; border:1px solid var(--line); border-radius:8px; white-space:nowrap;
+  }
+  .pilot-link:hover{background:var(--surface-2); color:var(--ink)}
+
+  .wrap{max-width:960px; margin:0 auto; padding:18px 16px 40px}
+
+  h1{font-family:var(--serif); font-size:clamp(22px,4.4vw,30px); line-height:1.15; margin:6px 0 4px}
+  .lede{color:var(--muted); font-size:15px; margin:0 0 16px; max-width:60ch}
+
+  .banner{
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--accent-tint); border:1px solid #f0cdbc; border-radius:12px;
+    padding:11px 13px; margin:0 0 20px;
+  }
+  .banner .ic{flex:0 0 auto; font-size:16px; line-height:1.4}
+  .banner p{margin:0; font-size:13.5px; color:var(--accent-ink)}
+  .banner strong{color:var(--accent-ink)}
+
+  .grid{display:grid; grid-template-columns:1fr; gap:18px}
+  @media(min-width:760px){ .grid{grid-template-columns:minmax(300px,1fr) 1.2fr; align-items:start} }
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:13px; padding:16px}
+  .card + .card{margin-top:16px}
+  .lbl{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); margin:0 0 8px}
+  .panel-title{font-family:var(--serif); font-size:18px; margin:0 0 3px}
+
+  fieldset{border:0; margin:0 0 18px; padding:0}
+  fieldset:last-child{margin-bottom:0}
+  legend{font-family:var(--mono); font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--faint); padding:0; margin-bottom:8px}
+  .hint{font-size:12px; color:var(--muted); margin:6px 0 0}
+
+  /* Segmented control */
+  .seg{display:flex; gap:6px; flex-wrap:wrap}
+  .seg button{
+    flex:1 1 auto; min-width:88px; font-family:var(--sans); font-size:13px; font-weight:600;
+    padding:9px 8px; border-radius:9px; border:1px solid var(--line); background:var(--surface);
+    color:var(--muted); cursor:pointer; line-height:1.2; text-align:center;
+  }
+  .seg button small{display:block; font-weight:400; font-size:11px; color:var(--faint); margin-top:2px}
+  .seg button[aria-pressed="true"]{
+    background:var(--accent); border-color:var(--accent); color:#fff;
+  }
+  .seg button[aria-pressed="true"] small{color:#fbe3d8}
+  .seg button:hover:not([aria-pressed="true"]){border-color:var(--accent); color:var(--accent-ink)}
+
+  /* Toggle */
+  .toggle{
+    display:inline-flex; align-items:center; gap:10px; font-family:var(--sans);
+    font-size:14px; font-weight:600; padding:8px 12px; border-radius:10px;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer;
+  }
+  .toggle .sw{
+    width:40px; height:23px; border-radius:999px; background:var(--surface-2);
+    border:1px solid var(--line); position:relative; transition:background .18s;
+  }
+  .toggle .sw::after{
+    content:""; position:absolute; top:1px; left:1px; width:19px; height:19px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.25); transition:transform .18s;
+  }
+  .toggle[aria-pressed="true"]{border-color:var(--accent); background:var(--accent-tint); color:var(--accent-ink)}
+  .toggle[aria-pressed="true"] .sw{background:var(--accent); border-color:var(--accent)}
+  .toggle[aria-pressed="true"] .sw::after{transform:translateX(17px)}
+
+  /* Chips */
+  .chips{display:flex; flex-wrap:wrap; gap:7px}
+  .chip{
+    font-family:var(--sans); font-size:13px; padding:6px 11px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .chip .dot{width:8px; height:8px; border-radius:50%; flex:0 0 auto}
+  .chip[data-sev="crit"] .dot{background:var(--crit)}
+  .chip[data-sev="warn"] .dot{background:var(--warn)}
+  .chip[data-sev="ok"] .dot{background:var(--ok)}
+  .chip[aria-pressed="true"]{background:var(--ink); color:#fff; border-color:var(--ink)}
+  .chip[aria-pressed="true"] .dot{outline:2px solid rgba(255,255,255,.5)}
+  .chip:hover:not([aria-pressed="true"]){border-color:var(--muted)}
+
+  /* Output panel */
+  .leaflet{background:var(--surface); border:1px solid var(--line); border-radius:13px; overflow:hidden}
+  .leaflet-head{
+    padding:14px 16px; background:linear-gradient(180deg,var(--accent-tint),#fff);
+    border-bottom:1px solid var(--line);
+  }
+  .leaflet-head h2{font-family:var(--serif); font-size:20px; margin:2px 0 2px}
+  .leaflet-head .sub{font-size:12.5px; color:var(--muted); margin:0}
+  .leaflet-body{padding:6px 16px 16px}
+
+  .sect{padding:14px 0; border-bottom:1px solid var(--line)}
+  .sect:last-child{border-bottom:0}
+  .sect h3{font-family:var(--mono); font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--faint); margin:0 0 10px; font-weight:600}
+
+  /* Dose visual */
+  .dose{display:flex; gap:13px; align-items:flex-start; flex-wrap:wrap}
+  .pills{display:flex; gap:5px; flex-wrap:wrap; align-items:center; flex:0 0 auto}
+  .pill{
+    width:34px; height:20px; border-radius:11px; border:1px solid rgba(0,0,0,.18);
+    display:flex; align-items:center; justify-content:center; font-family:var(--mono);
+    font-size:8px; color:rgba(0,0,0,.45); letter-spacing:.02em;
+  }
+  .pill.nir{background:#f6c9d4; border-color:#e29aab}
+  .pill.rit{background:#fcfcfa; border-color:#d3d3cc}
+  .dose-txt{flex:1 1 200px; min-width:180px}
+  .dose-txt .big{font-size:15px; font-weight:600; margin:0 0 2px}
+  .dose-txt .small{font-size:13px; color:var(--muted); margin:0}
+  .times{display:flex; gap:14px; margin-top:8px; flex-wrap:wrap}
+  .times span{font-size:12.5px; color:var(--muted); display:inline-flex; align-items:center; gap:5px}
+
+  .surplus{
+    display:flex; gap:8px; align-items:flex-start; margin-top:11px;
+    background:var(--warn-tint); border:1px solid #ecd9a8; border-radius:9px; padding:9px 11px;
+    font-size:12.5px; color:#7a5711;
+  }
+  .surplus .ic{flex:0 0 auto}
+
+  /* Interaction rows */
+  .irow{
+    display:flex; gap:11px; padding:10px 0; border-top:1px solid var(--line); align-items:flex-start;
+  }
+  .irow:first-of-type{border-top:0}
+  .sevbadge{
+    flex:0 0 auto; font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; text-transform:uppercase;
+    font-weight:700; padding:4px 7px; border-radius:6px; margin-top:1px; min-width:104px; text-align:center;
+  }
+  .sevbadge.crit{background:var(--crit-tint); color:var(--crit); border:1px solid #f0c2ba}
+  .sevbadge.warn{background:var(--warn-tint); color:var(--warn); border:1px solid #ecd9a8}
+  .sevbadge.ok{background:var(--ok-tint); color:var(--ok); border:1px solid #bfe0cd}
+  .irow .med{flex:1 1 auto}
+  .irow .med .name{font-weight:600; font-size:14px; text-transform:capitalize}
+  .irow .med .note{font-size:12.5px; color:var(--muted); margin-top:1px}
+  .empty-meds{font-size:13px; color:var(--faint); font-style:italic; margin:0}
+
+  /* Warnings */
+  .warn-list{display:flex; flex-direction:column; gap:8px}
+  .wbox{
+    display:flex; gap:9px; align-items:flex-start; border-radius:9px; padding:9px 11px;
+    font-size:13px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink);
+  }
+  .wbox .ic{flex:0 0 auto}
+  .wbox.info{background:var(--surface-2); border-color:var(--line)}
+  .wbox.renal{background:var(--accent-tint); border-color:#f0cdbc; color:var(--accent-ink)}
+  .wbox.preg{background:var(--warn-tint); border-color:#ecd9a8; color:#7a5711}
+
+  .redflag{
+    display:flex; gap:10px; align-items:flex-start; margin-top:12px;
+    background:var(--crit-tint); border:1px solid #eeb3aa; border-left:4px solid var(--crit);
+    border-radius:9px; padding:11px 13px;
+  }
+  .redflag .ic{flex:0 0 auto; font-size:17px}
+  .redflag .t{font-weight:700; color:var(--crit); font-size:13.5px; margin:0 0 2px}
+  .redflag p{margin:0; font-size:12.5px; color:#7a2820}
+
+  .provenance{
+    font-family:var(--mono); font-size:10.5px; color:var(--faint); letter-spacing:.03em;
+    margin-top:12px; padding-top:10px; border-top:1px dashed var(--line);
+  }
+
+  /* focus */
+  button:focus-visible, a:focus-visible{
+    outline:3px solid var(--accent); outline-offset:2px; border-radius:8px;
+  }
+
+  footer.disc{
+    max-width:960px; margin:0 auto; padding:22px 16px 40px; color:var(--faint);
+    font-size:12px; line-height:1.55; border-top:1px solid var(--line); margin-top:8px;
+  }
+
+  @media(prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <span class="brand">PAXLOVID · Singapore ePI</span>
+    <span class="tag">Patient view</span>
+    <span class="spacer"></span>
+    <a class="pilot-link" href="../sg-epi-pilot.html" target="_top">↩ ePI Pilot</a>
+  </header>
+
+  <main class="wrap">
+    <h1>My PAXLOVID Leaflet</h1>
+    <p class="lede">A leaflet that rebuilds itself for you. Set three things about your situation and your
+      leaflet reassembles live — the right dose, the medicines to watch, and only the warnings that apply to you.</p>
+
+    <div class="banner">
+      <span class="ic" aria-hidden="true">🧬</span>
+      <p><strong>Same published leaflet — filtered to you.</strong> Nothing here is invented. This is the one official
+        Singapore ePI for PAXLOVID, personalised on your device. Write once, personalise for each patient.</p>
+    </div>
+
+    <div class="grid">
+      <!-- INPUTS -->
+      <section class="card" aria-label="Your details">
+        <p class="lbl">Tell us about you</p>
+
+        <fieldset>
+          <legend>Kidney function</legend>
+          <div class="seg" id="renalSeg" role="group" aria-label="Kidney function">
+            <button type="button" data-renal="none" aria-pressed="true">No / mild<small>eGFR ≥ 60</small></button>
+            <button type="button" data-renal="moderate" aria-pressed="false">Moderate<small>eGFR 30–59</small></button>
+            <button type="button" data-renal="severe" aria-pressed="false">Severe<small>eGFR &lt; 30</small></button>
+          </div>
+          <p class="hint">Your doctor tells you this from a blood test. Not sure? Ask them.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Pregnant or breast-feeding</legend>
+          <button type="button" class="toggle" id="pregToggle" aria-pressed="false">
+            <span class="sw" aria-hidden="true"></span>
+            <span id="pregLabel">No</span>
+          </button>
+        </fieldset>
+
+        <fieldset>
+          <legend>Medicines you currently take</legend>
+          <div class="chips" id="medChips" role="group" aria-label="Select your current medicines">
+            <!-- populated by JS -->
+          </div>
+          <p class="hint">Tap any that apply. Colour dot hints at the interaction level.</p>
+        </fieldset>
+      </section>
+
+      <!-- OUTPUT -->
+      <section class="leaflet" aria-live="polite" aria-label="My personalised PAXLOVID leaflet">
+        <div class="leaflet-head">
+          <p class="lbl" style="margin:0;color:var(--accent-ink)">My PAXLOVID leaflet</p>
+          <h2>For treating COVID-19 · 5-day course</h2>
+          <p class="sub" id="profileSummary"></p>
+        </div>
+        <div class="leaflet-body">
+
+          <div class="sect">
+            <h3>How much to take</h3>
+            <div class="dose">
+              <div class="pills" id="dosePills" aria-hidden="true"></div>
+              <div class="dose-txt">
+                <p class="big" id="doseBig"></p>
+                <p class="small" id="doseSmall"></p>
+                <div class="times" id="doseTimes"></div>
+              </div>
+            </div>
+            <div id="surplusNote"></div>
+          </div>
+
+          <div class="sect">
+            <h3>Your medicines · interaction check</h3>
+            <div id="interactions"></div>
+          </div>
+
+          <div class="sect">
+            <h3>Warnings that apply to you</h3>
+            <div class="warn-list" id="warnings"></div>
+            <div class="redflag">
+              <span class="ic" aria-hidden="true">🛑</span>
+              <div>
+                <p class="t">Stop and call a doctor now</p>
+                <p>Severe allergic reaction can happen even after one dose. Get help immediately if you have trouble
+                  swallowing or breathing, swelling of the tongue / mouth / face, throat tightness, hoarseness,
+                  itching or a skin rash.</p>
+              </div>
+            </div>
+          </div>
+
+          <p class="provenance" id="provenance"></p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="disc">
+    Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by the PAXLOVID
+    reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are placeholders to be confirmed
+    with HSA. Data simplified for demonstration.
+  </footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Data (from PAXLOVID data pack) ----
+  var DOSE = {
+    none:{
+      big:"2 pink + 1 white tablet, twice a day",
+      small:"Take together every morning and evening for 5 days. Swallow whole — do not chew or crush. With or without food.",
+      pills:[["nir","N"],["nir","N"],["rit","R"]],
+      times:["☀ Morning","🌙 Evening"],
+      surplus:null
+    },
+    moderate:{
+      big:"1 pink + 1 white tablet, twice a day",
+      small:"Take together every morning and evening for 5 days. Swallow whole — do not chew or crush.",
+      pills:[["nir","N"],["rit","R"]],
+      times:["☀ Morning","🌙 Evening"],
+      surplus:"Your pack may contain more tablets than you need. Take only the dose above — do not take the extra tablets."
+    },
+    severe:{
+      big:"Day 1: 2 pink + 1 white once. Days 2–5: 1 pink + 1 white once daily",
+      small:"Take once a day. If you are on dialysis, take your dose after your haemodialysis session.",
+      pills:[["nir","N"],["rit","R"]],
+      times:["Once daily"],
+      surplus:"Your pack may contain more tablets than you need. Follow the reduced schedule above only."
+    }
+  };
+
+  var MEDS = [
+    {id:"simvastatin",  name:"simvastatin",  sev:"crit", note:"Do not take with PAXLOVID — risk of serious muscle injury from raised cholesterol-medicine levels."},
+    {id:"sildenafil",   name:"sildenafil (for PAH)", sev:"crit", note:"Do not take with PAXLOVID when used for pulmonary hypertension (PAH)."},
+    {id:"carbamazepine",name:"carbamazepine",sev:"crit", note:"Do not take with PAXLOVID — this seizure medicine can make PAXLOVID stop working."},
+    {id:"warfarin",     name:"warfarin",     sev:"warn", note:"Can be used with monitoring — your INR (blood clotting) may need to be checked more often."},
+    {id:"amlodipine",   name:"amlodipine",   sev:"warn", note:"Blood-pressure medicine — your doctor may lower the dose while you take PAXLOVID."},
+    {id:"paracetamol",  name:"paracetamol",  sev:"ok",   note:"No interaction identified in this label — can be taken as usual."},
+    {id:"metformin",    name:"metformin",    sev:"ok",   note:"No interaction identified in this label — can be taken as usual."}
+  ];
+
+  var SEVLABEL = {crit:"Contraindicated", warn:"Caution", ok:"No interaction"};
+  var RENALLABEL = {none:"no / mild kidney impairment", moderate:"moderate kidney impairment", severe:"severe kidney impairment"};
+
+  // ---- State ----
+  var state = { renal:"none", preg:false, meds:{} };
+
+  // ---- Build chips ----
+  var chipWrap = document.getElementById("medChips");
+  MEDS.forEach(function(m){
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.setAttribute("data-sev", m.sev);
+    b.setAttribute("aria-pressed","false"); b.setAttribute("data-id", m.id);
+    b.innerHTML = '<span class="dot" aria-hidden="true"></span>' + m.name;
+    b.addEventListener("click", function(){
+      var on = b.getAttribute("aria-pressed") === "true";
+      b.setAttribute("aria-pressed", on ? "false" : "true");
+      if(on){ delete state.meds[m.id]; } else { state.meds[m.id] = true; }
+      render();
+    });
+    chipWrap.appendChild(b);
+  });
+
+  // ---- Renal segmented control ----
+  var segBtns = document.querySelectorAll("#renalSeg button");
+  segBtns.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      segBtns.forEach(function(b){ b.setAttribute("aria-pressed","false"); });
+      btn.setAttribute("aria-pressed","true");
+      state.renal = btn.getAttribute("data-renal");
+      render();
+    });
+  });
+
+  // ---- Pregnancy toggle ----
+  var pregBtn = document.getElementById("pregToggle");
+  pregBtn.addEventListener("click", function(){
+    state.preg = !state.preg;
+    pregBtn.setAttribute("aria-pressed", state.preg ? "true":"false");
+    document.getElementById("pregLabel").textContent = state.preg ? "Yes" : "No";
+    render();
+  });
+
+  // ---- Render ----
+  function esc(s){ return String(s).replace(/[&<>]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;"}[c]; }); }
+
+  function render(){
+    var d = DOSE[state.renal];
+
+    // profile summary
+    var parts = [RENALLABEL[state.renal]];
+    if(state.preg) parts.push("pregnant / breast-feeding");
+    var nMeds = Object.keys(state.meds).length;
+    parts.push(nMeds + (nMeds===1 ? " medicine listed" : " medicines listed"));
+    document.getElementById("profileSummary").textContent = "Personalised for: " + parts.join(" · ");
+
+    // dose pills
+    var pw = document.getElementById("dosePills");
+    pw.innerHTML = "";
+    d.pills.forEach(function(p){
+      var el = document.createElement("span");
+      el.className = "pill " + p[0]; el.textContent = p[1];
+      pw.appendChild(el);
+    });
+    document.getElementById("doseBig").textContent = d.big;
+    document.getElementById("doseSmall").textContent = d.small;
+    var tw = document.getElementById("doseTimes");
+    tw.innerHTML = "";
+    d.times.forEach(function(t){
+      var s = document.createElement("span"); s.textContent = t; tw.appendChild(s);
+    });
+    var sn = document.getElementById("surplusNote");
+    sn.innerHTML = d.surplus
+      ? '<div class="surplus"><span class="ic" aria-hidden="true">⚠</span><span>'+esc(d.surplus)+'</span></div>'
+      : "";
+
+    // interactions
+    var iw = document.getElementById("interactions");
+    if(nMeds === 0){
+      iw.innerHTML = '<p class="empty-meds">No medicines selected. Add any you take on the left to check them against this leaflet.</p>';
+    } else {
+      var order = {crit:0, warn:1, ok:2};
+      var chosen = MEDS.filter(function(m){ return state.meds[m.id]; })
+                       .sort(function(a,b){ return order[a.sev]-order[b.sev]; });
+      iw.innerHTML = chosen.map(function(m){
+        return '<div class="irow">'+
+          '<span class="sevbadge '+m.sev+'">'+SEVLABEL[m.sev]+'</span>'+
+          '<div class="med"><div class="name">'+esc(m.name)+'</div>'+
+          '<div class="note">'+esc(m.note)+'</div></div></div>';
+      }).join("");
+    }
+
+    // warnings — conditional
+    var ww = document.getElementById("warnings");
+    var items = [];
+    items.push({cls:"info", ic:"ⓘ", txt:"Contains lactose. If you have been told you cannot tolerate some sugars, speak to your doctor before taking PAXLOVID."});
+    if(state.preg){
+      items.push({cls:"preg", ic:"⚠", txt:"You told us you are pregnant or breast-feeding. Avoid PAXLOVID unless your doctor decides otherwise. Use non-hormonal contraception during and for 7 days after; if breast-feeding, stop during and for 48 hours after the course."});
+    }
+    if(state.renal !== "none"){
+      items.push({cls:"renal", ic:"🩺", txt:"Because of your "+RENALLABEL[state.renal]+", your dose above has been adjusted. Do not take the standard dose — follow the schedule shown."});
+    }
+    ww.innerHTML = items.map(function(it){
+      return '<div class="wbox '+it.cls+'"><span class="ic" aria-hidden="true">'+it.ic+'</span><span>'+esc(it.txt)+'</span></div>';
+    }).join("");
+
+    // provenance
+    var critCount = MEDS.filter(function(m){ return state.meds[m.id] && m.sev==="crit"; }).length;
+    document.getElementById("provenance").textContent =
+      "Source: PAXLOVID Singapore ePI · PAXH-SIN-0126/PIL/0 · filtered on device — "
+      + (critCount>0 ? critCount+" contraindication(s) shown · " : "")
+      + "dosing set = " + state.renal + ".";
+  }
+
+  render();
+})();
+</script>
+</body>
+</html>

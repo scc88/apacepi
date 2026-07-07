@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAXLOVID Singapore ePI — Multilingual patient leaflet</title>
+<meta name="description" content="Concept mockup: one structured FHIR ePI for PAXLOVID rendered in Singapore's four official languages with an accessibility mode — impossible on a single printed insert.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#d9603a; --accent-ink:#a8431f; --accent-tint:#fbeae2; /* patients = coral */
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+    --root-size:16px;
+  }
+  *{box-sizing:border-box;}
+  html{font-size:var(--root-size);}
+  body{
+    margin:0; background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.55;
+    -webkit-text-size-adjust:100%;
+  }
+  /* ---- accessibility: large text ---- */
+  html.large{--root-size:20px;}
+  /* ---- accessibility: high contrast ---- */
+  html.hc{
+    --ground:#ffffff; --surface:#ffffff; --surface-2:#f0f0f0;
+    --ink:#000000; --muted:#1a1a1a; --faint:#333333; --line:#000000;
+    --accent:#a8431f; --accent-ink:#7a2f15; --accent-tint:#ffe9df;
+  }
+  html.hc .card,html.hc .chip,html.hc .langbtn,html.hc .toolbtn{border-width:2px;}
+  html.hc a{text-decoration:underline;}
+
+  a{color:var(--accent-ink);}
+  :focus-visible{outline:3px solid var(--accent); outline-offset:2px; border-radius:4px;}
+
+  /* ---- header bar ---- */
+  header.appbar{
+    display:flex; align-items:center; gap:.75rem; flex-wrap:wrap;
+    padding:.6rem 1rem; background:var(--surface); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand{font-family:var(--mono); font-weight:600; letter-spacing:.02em; font-size:.9rem;}
+  .brand .dot{color:var(--faint);}
+  .audience-tag{
+    font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.09em;
+    color:var(--accent-ink); background:var(--accent-tint); border:1px solid var(--accent);
+    padding:.16rem .5rem; border-radius:999px; white-space:nowrap;
+  }
+  .appbar .spacer{flex:1 1 auto;}
+  .pilot-link{
+    font-family:var(--mono); font-size:.78rem; text-decoration:none; color:var(--muted);
+    border:1px solid var(--line); padding:.3rem .6rem; border-radius:8px; white-space:nowrap;
+  }
+  .pilot-link:hover{color:var(--ink); border-color:var(--faint);}
+
+  main{max-width:860px; margin:0 auto; padding:1rem 1rem 2rem;}
+
+  /* ---- control bars ---- */
+  .controls{
+    display:grid; gap:.75rem; margin-bottom:1.25rem;
+  }
+  .ctrl-group{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:.7rem .8rem;
+  }
+  .ctrl-label{
+    display:block; font-family:var(--mono); font-size:.64rem; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--faint); margin-bottom:.5rem;
+  }
+  .btn-row{display:flex; flex-wrap:wrap; gap:.4rem;}
+  .langbtn{
+    font-family:var(--sans); font-size:.95rem; cursor:pointer;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    padding:.4rem .7rem; border-radius:9px; line-height:1.2;
+  }
+  .langbtn:hover{border-color:var(--faint);}
+  .langbtn[aria-pressed="true"]{
+    background:var(--accent-tint); border-color:var(--accent); color:var(--accent-ink);
+    font-weight:600;
+  }
+  .toolbtn{
+    display:inline-flex; align-items:center; gap:.45rem;
+    font-family:var(--sans); font-size:.9rem; cursor:pointer;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    padding:.4rem .7rem; border-radius:9px;
+  }
+  .toolbtn:hover{border-color:var(--faint);}
+  .toolbtn .sw{
+    width:2.1rem; height:1.15rem; border-radius:999px; background:var(--surface-2);
+    border:1px solid var(--line); position:relative; flex:0 0 auto; transition:background .15s;
+  }
+  .toolbtn .sw::after{
+    content:""; position:absolute; top:1px; left:1px; width:calc(1.15rem - 4px); height:calc(1.15rem - 4px);
+    border-radius:999px; background:var(--faint); transition:left .15s, background .15s;
+  }
+  .toolbtn[aria-pressed="true"]{border-color:var(--accent); color:var(--accent-ink); font-weight:600;}
+  .toolbtn[aria-pressed="true"] .sw{background:var(--accent-tint);}
+  .toolbtn[aria-pressed="true"] .sw::after{left:calc(100% - 1.15rem + 1px); background:var(--accent);}
+
+  /* ---- concept strip ---- */
+  .concept{
+    background:var(--surface); border:1px solid var(--line); border-left:4px solid var(--accent);
+    border-radius:12px; padding:.85rem 1rem; margin-bottom:1.25rem;
+  }
+  .concept .tag{
+    font-family:var(--mono); font-size:.64rem; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--accent-ink); margin-bottom:.3rem;
+  }
+  .concept p{margin:.2rem 0 0; font-size:.92rem; color:var(--muted);}
+
+  /* ---- leaflet head ---- */
+  .leaflet-head{margin-bottom:1rem;}
+  .kicker{
+    font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.1em;
+    color:var(--faint);
+  }
+  .leaflet-head h1{
+    font-family:var(--serif); font-size:1.6rem; line-height:1.2; margin:.25rem 0 .4rem;
+  }
+  .read-note{
+    font-style:italic; color:var(--muted); font-size:.95rem; margin:.4rem 0 0;
+    border-left:3px solid var(--accent-tint); padding-left:.7rem;
+  }
+
+  /* ---- localisation banner ---- */
+  .loc-banner{
+    display:flex; gap:.55rem; align-items:flex-start;
+    background:var(--accent-tint); border:1px solid var(--accent); border-radius:10px;
+    padding:.6rem .8rem; margin:1rem 0 1.25rem; font-size:.85rem; color:var(--accent-ink);
+  }
+  .loc-banner svg{flex:0 0 auto; margin-top:.1rem;}
+
+  /* ---- sections ---- */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:1rem 1.1rem; margin-bottom:.85rem;
+  }
+  .sec-head{display:flex; gap:.7rem; align-items:baseline;}
+  .sec-num{
+    font-family:var(--mono); font-weight:600; font-size:.95rem; color:#fff;
+    background:var(--accent); border-radius:7px; min-width:1.7rem; height:1.7rem;
+    display:inline-flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .sec-title{font-family:var(--serif); font-size:1.18rem; line-height:1.25; margin:0;}
+  .sec-body{margin-top:.6rem;}
+  .sec-body[lang]{}
+  .sec-body p{margin:.5rem 0;}
+  .en-note{
+    font-family:var(--mono); font-size:.6rem; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--faint); border:1px solid var(--line); border-radius:6px; padding:.1rem .35rem;
+    display:inline-block; margin-bottom:.4rem;
+  }
+
+  /* dosing table */
+  .table-wrap{overflow-x:auto; margin:.6rem 0; border:1px solid var(--line); border-radius:10px;}
+  table{border-collapse:collapse; width:100%; min-width:420px; font-size:.88rem;}
+  caption{text-align:left; font-size:.8rem; color:var(--muted); padding:.5rem .7rem 0;}
+  th,td{text-align:left; padding:.55rem .7rem; border-bottom:1px solid var(--line); vertical-align:top;}
+  thead th{
+    font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.06em;
+    color:var(--muted); background:var(--surface-2); border-bottom:2px solid var(--line);
+  }
+  tbody tr:last-child td{border-bottom:none;}
+  td strong{color:var(--accent-ink);}
+  .warn-inline{color:var(--warn); font-weight:600;}
+
+  /* side effects frequency groups */
+  .freq{border:1px solid var(--line); border-radius:10px; margin:.55rem 0; overflow:hidden;}
+  .freq > .freq-head{
+    display:flex; justify-content:space-between; gap:.5rem; align-items:center;
+    padding:.5rem .75rem; font-weight:600; font-size:.9rem;
+  }
+  .freq .freq-head .band{
+    font-family:var(--mono); font-size:.62rem; text-transform:uppercase; letter-spacing:.07em;
+    padding:.12rem .45rem; border-radius:999px;
+  }
+  .freq.common .freq-head{background:var(--ok-tint);} .freq.common .band{background:#fff; color:var(--ok); border:1px solid var(--ok);}
+  .freq.uncommon .freq-head{background:var(--warn-tint);} .freq.uncommon .band{background:#fff; color:var(--warn); border:1px solid var(--warn);}
+  .freq.rare .freq-head{background:var(--crit-tint);} .freq.rare .band{background:#fff; color:var(--crit); border:1px solid var(--crit);}
+  .freq ul{margin:0; padding:.5rem .75rem .6rem 1.6rem; font-size:.9rem;}
+  .freq li{margin:.15rem 0;}
+  .stop-box{
+    border:1px solid var(--crit); background:var(--crit-tint); border-radius:10px;
+    padding:.7rem .85rem; margin-top:.7rem;
+  }
+  .stop-box .stop-title{color:var(--crit); font-weight:700; display:flex; align-items:center; gap:.4rem; margin-bottom:.3rem;}
+
+  .placeholder-body{color:var(--muted); font-size:.9rem; font-style:italic;}
+
+  footer.disclaimer{
+    max-width:860px; margin:1.5rem auto 0; padding:1rem;
+    font-size:.76rem; color:var(--muted); line-height:1.5;
+    border-top:1px solid var(--line);
+  }
+
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;}
+  }
+  @media (max-width:520px){
+    .leaflet-head h1{font-size:1.35rem;}
+    .brand{font-size:.82rem;}
+  }
+</style>
+</head>
+<body>
+<header class="appbar">
+  <span class="brand">PAXLOVID <span class="dot">·</span> Singapore ePI</span>
+  <span class="audience-tag" id="tag-audience">Patient view</span>
+  <span class="spacer"></span>
+  <a class="pilot-link" href="../sg-epi-pilot.html" target="_top">&#8617; ePI Pilot</a>
+</header>
+
+<main>
+  <section class="concept" aria-labelledby="concept-tag">
+    <div class="tag" id="concept-tag">One structured source &rarr; many presentations</div>
+    <p id="concept-line">One dataset &middot; four languages &middot; accessible — the same FHIR ePI, re-rendered on demand. Impossible on one printed paper insert.</p>
+  </section>
+
+  <div class="controls">
+    <div class="ctrl-group">
+      <span class="ctrl-label" id="lbl-language">Language</span>
+      <div class="btn-row" role="group" aria-labelledby="lbl-language">
+        <button type="button" class="langbtn" data-lang="en" lang="en" aria-pressed="true">English</button>
+        <button type="button" class="langbtn" data-lang="zh" lang="zh">中文</button>
+        <button type="button" class="langbtn" data-lang="ms" lang="ms">Bahasa Melayu</button>
+        <button type="button" class="langbtn" data-lang="ta" lang="ta">தமிழ்</button>
+      </div>
+    </div>
+    <div class="ctrl-group">
+      <span class="ctrl-label" id="lbl-access">Accessibility</span>
+      <div class="btn-row" role="group" aria-labelledby="lbl-access">
+        <button type="button" class="toolbtn" id="btn-large" aria-pressed="false">
+          <span class="sw" aria-hidden="true"></span><span id="txt-large">Large text</span>
+        </button>
+        <button type="button" class="toolbtn" id="btn-contrast" aria-pressed="false">
+          <span class="sw" aria-hidden="true"></span><span id="txt-contrast">High contrast</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="leaflet-head">
+    <div class="kicker" id="txt-packageleaflet">Package leaflet: Information for the patient</div>
+    <h1>PAXLOVID 150&nbsp;mg / 100&nbsp;mg film-coated tablets</h1>
+    <p class="read-note" id="txt-readnote">Read all of this leaflet carefully before you start taking this medicine.</p>
+  </div>
+
+  <div class="loc-banner">
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v.5M12 11v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    <span id="txt-banner">In production, fully localised body text is supplied per language from the same structured ePI. Below, section headings translate live while sample body text is shown in English.</span>
+  </div>
+
+  <!-- Section 1 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">1</span><h2 class="sec-title" data-sec="1">What PAXLOVID is and what it is used for</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <p>PAXLOVID is an antiviral medicine used to treat mild-to-moderate COVID-19 in adults who are at high risk of their illness becoming severe (needing hospital care, or leading to death).</p>
+      <p>It is a course of two medicines taken together: <strong>nirmatrelvir</strong> (pink tablet) and <strong>ritonavir</strong> (white tablet). Start treatment as soon as possible and within <strong>5 days</strong> of your symptoms starting. A full course lasts <strong>5 days</strong>.</p>
+    </div>
+  </section>
+
+  <!-- Section 2 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">2</span><h2 class="sec-title" data-sec="2">What you need to know before you take PAXLOVID</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <p class="placeholder-body">Includes allergy and anaphylaxis warnings, liver and kidney disease, drug interactions, pregnancy and breast-feeding, and that PAXLOVID contains lactose. Full localised text is generated from the same structured ePI.</p>
+    </div>
+  </section>
+
+  <!-- Section 3 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">3</span><h2 class="sec-title" data-sec="3">How to take PAXLOVID</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <p>Your dose depends on your kidney function. Always follow your doctor&rsquo;s instructions.</p>
+      <div class="table-wrap">
+        <table>
+          <caption>Dosing by kidney function — a 5-day course</caption>
+          <thead>
+            <tr><th scope="col">Kidney function (eGFR)</th><th scope="col">Dose</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>No / mild impairment (&ge;60)</td><td><strong>2 nirmatrelvir + 1 ritonavir</strong>, twice daily, 5 days</td></tr>
+            <tr><td>Moderate (&ge;30 to &lt;60)</td><td><strong>1 nirmatrelvir + 1 ritonavir</strong>, twice daily, 5 days. <span class="warn-inline">&#9888; pack may contain more tablets than needed</span></td></tr>
+            <tr><td>Severe (&lt;30, incl. dialysis)</td><td>Day 1: <strong>2 nir + 1 rit</strong> once; Days 2&ndash;5: <strong>1 nir + 1 rit</strong> once daily. On dialysis days, take the dose <strong>after</strong> haemodialysis. <span class="warn-inline">&#9888; pack alert</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Take with or without food; swallow tablets whole (do not chew or crush). <strong>Missed dose:</strong> within 8 hours &rarr; take it now and resume your schedule; more than 8 hours &rarr; skip it and take the next dose at the usual time. Never take a double dose.</p>
+    </div>
+  </section>
+
+  <!-- Section 4 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">4</span><h2 class="sec-title" data-sec="4">Possible side effects</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <div class="freq common">
+        <div class="freq-head"><span>Common</span><span class="band">up to 1 in 10</span></div>
+        <ul><li>Altered sense of taste</li><li>Headache</li><li>Diarrhoea</li><li>Nausea</li></ul>
+      </div>
+      <div class="freq uncommon">
+        <div class="freq-head"><span>Uncommon</span><span class="band">up to 1 in 100</span></div>
+        <ul><li>Allergic reactions (itching / skin rash)</li><li>Increased blood pressure</li><li>Vomiting</li><li>Abdominal pain</li></ul>
+      </div>
+      <div class="freq rare">
+        <div class="freq-head"><span>Rare</span><span class="band">up to 1 in 1,000</span></div>
+        <ul><li>Anaphylaxis (severe allergic reaction)</li><li>Feeling generally unwell</li><li>Serious skin reaction — Stevens-Johnson syndrome / toxic epidermal necrolysis</li></ul>
+      </div>
+      <div class="stop-box">
+        <div class="stop-title"><svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 2 21h20L12 2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5M12 17v.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg> Stop and call a doctor now if you have:</div>
+        <p style="margin:.2rem 0 0; font-size:.9rem;">trouble swallowing or breathing; swelling of the tongue, mouth or face; throat tightness; hoarseness; itching; or a skin rash (signs of an allergic reaction).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 5 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">5</span><h2 class="sec-title" data-sec="5">How to store PAXLOVID</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <p class="placeholder-body">Store at or below 30&nbsp;°C. Do not refrigerate or freeze. Keep out of the sight and reach of children. Full localised text is generated from the same structured ePI.</p>
+    </div>
+  </section>
+
+  <!-- Section 6 -->
+  <section class="card">
+    <div class="sec-head"><span class="sec-num">6</span><h2 class="sec-title" data-sec="6">Contents of the pack and other information</h2></div>
+    <div class="sec-body" lang="en">
+      <span class="en-note">Sample body · English</span>
+      <p class="placeholder-body">A carton holds 30 tablets in 5 daily-dose blister cards (each card: 4 nirmatrelvir + 2 ritonavir, marked morning / evening with sun &amp; moon symbols). Includes the full ingredient list and marketing-authorisation details. Full localised text is generated from the same structured ePI.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="disclaimer">
+  Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are placeholders to be confirmed with HSA. Data simplified for demonstration.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  var I18N = {
+    en:{
+      htmlLang:"en",
+      audience:"Patient view",
+      language:"Language",
+      accessibility:"Accessibility",
+      largeText:"Large text",
+      highContrast:"High contrast",
+      packageLeaflet:"Package leaflet: Information for the patient",
+      readNote:"Read all of this leaflet carefully before you start taking this medicine.",
+      conceptTag:"One structured source → many presentations",
+      conceptLine:"One dataset · four languages · accessible — the same FHIR ePI, re-rendered on demand. Impossible on one printed paper insert.",
+      banner:"In production, fully localised body text is supplied per language from the same structured ePI. Below, section headings translate live while sample body text is shown in English.",
+      sections:{
+        1:"What PAXLOVID is and what it is used for",
+        2:"What you need to know before you take PAXLOVID",
+        3:"How to take PAXLOVID",
+        4:"Possible side effects",
+        5:"How to store PAXLOVID",
+        6:"Contents of the pack and other information"
+      }
+    },
+    zh:{
+      htmlLang:"zh",
+      audience:"患者视图",
+      language:"语言",
+      accessibility:"无障碍",
+      largeText:"大字体",
+      highContrast:"高对比度",
+      packageLeaflet:"包装说明书：患者须知",
+      readNote:"在开始服用此药物之前，请仔细阅读本说明书的全部内容。",
+      conceptTag:"一个结构化数据源 → 多种呈现方式",
+      conceptLine:"一份数据 · 四种语言 · 无障碍 —— 同一份 FHIR ePI，按需重新呈现。这在一张印刷纸质说明书上是不可能实现的。",
+      banner:"在实际应用中，完整的本地化正文将从同一结构化 ePI 中按语言提供。下方的章节标题会即时翻译，而示例正文以英文显示。",
+      sections:{
+        1:"PAXLOVID 是什么以及它的用途",
+        2:"服用 PAXLOVID 之前您需要了解的信息",
+        3:"如何服用 PAXLOVID",
+        4:"可能的副作用",
+        5:"如何储存 PAXLOVID",
+        6:"包装内容物及其他信息"
+      }
+    },
+    ms:{
+      htmlLang:"ms",
+      audience:"Paparan pesakit",
+      language:"Bahasa",
+      accessibility:"Kebolehcapaian",
+      largeText:"Teks besar",
+      highContrast:"Kontras tinggi",
+      packageLeaflet:"Risalah pakej: Maklumat untuk pesakit",
+      readNote:"Baca semua risalah ini dengan teliti sebelum anda mula mengambil ubat ini.",
+      conceptTag:"Satu sumber berstruktur → banyak persembahan",
+      conceptLine:"Satu set data · empat bahasa · boleh diakses — ePI FHIR yang sama, dipaparkan semula atas permintaan. Mustahil pada satu risalah kertas bercetak.",
+      banner:"Dalam pengeluaran, teks badan yang dilokalkan sepenuhnya dibekalkan mengikut bahasa daripada ePI berstruktur yang sama. Di bawah, tajuk bahagian diterjemahkan secara langsung manakala teks badan contoh dipaparkan dalam bahasa Inggeris.",
+      sections:{
+        1:"Apakah PAXLOVID dan untuk apa ia digunakan",
+        2:"Apa yang anda perlu tahu sebelum anda mengambil PAXLOVID",
+        3:"Bagaimana untuk mengambil PAXLOVID",
+        4:"Kesan sampingan yang mungkin berlaku",
+        5:"Bagaimana untuk menyimpan PAXLOVID",
+        6:"Kandungan pek dan maklumat lain"
+      }
+    },
+    ta:{
+      htmlLang:"ta",
+      audience:"நோயாளி பார்வை",
+      language:"மொழி",
+      accessibility:"அணுகல்தன்மை",
+      largeText:"பெரிய எழுத்து",
+      highContrast:"அதிக மாறுபாடு",
+      packageLeaflet:"பொதி சிற்றேடு: நோயாளிக்கான தகவல்",
+      readNote:"இந்த மருந்தை எடுத்துக்கொள்ளத் தொடங்கும் முன், இந்த சிறு அறிக்கை முழுவதையும் கவனமாகப் படியுங்கள்.",
+      conceptTag:"ஒரே கட்டமைக்கப்பட்ட மூலம் → பல வழங்கல்கள்",
+      conceptLine:"ஒரே தரவுத்தொகுப்பு · நான்கு மொழிகள் · அணுகக்கூடியது — அதே FHIR ePI, தேவைக்கேற்ப மீண்டும் வழங்கப்படுகிறது. அச்சிடப்பட்ட ஒரு தாள் சிற்றேட்டில் இது சாத்தியமில்லை.",
+      banner:"உற்பத்தியில், முழுமையாக உள்ளூர்மயமாக்கப்பட்ட உரை ஒவ்வொரு மொழிக்கும் அதே கட்டமைக்கப்பட்ட ePI-யிலிருந்து வழங்கப்படுகிறது. கீழே, பிரிவுத் தலைப்புகள் நேரலையில் மொழிபெயர்க்கப்படுகின்றன, மாதிரி உரை ஆங்கிலத்தில் காட்டப்படுகிறது.",
+      sections:{
+        1:"PAXLOVID என்றால் என்ன, அது எதற்காகப் பயன்படுத்தப்படுகிறது",
+        2:"PAXLOVID எடுத்துக்கொள்வதற்கு முன் நீங்கள் அறிந்திருக்க வேண்டியவை",
+        3:"PAXLOVID எவ்வாறு எடுத்துக்கொள்வது",
+        4:"ஏற்படக்கூடிய பக்கவிளைவுகள்",
+        5:"PAXLOVID எவ்வாறு சேமித்து வைப்பது",
+        6:"பொதியின் உள்ளடக்கம் மற்றும் பிற தகவல்கள்"
+      }
+    }
+  };
+
+  var state = { lang:"en", large:false, hc:false };
+
+  var htmlEl = document.documentElement;
+  var langButtons = Array.prototype.slice.call(document.querySelectorAll(".langbtn"));
+
+  function $(id){ return document.getElementById(id); }
+
+  function applyLanguage(lang){
+    var t = I18N[lang]; if(!t) return;
+    state.lang = lang;
+    htmlEl.setAttribute("lang", t.htmlLang);
+
+    $("tag-audience").textContent = t.audience;
+    $("lbl-language").textContent = t.language;
+    $("lbl-access").textContent = t.accessibility;
+    $("txt-large").textContent = t.largeText;
+    $("txt-contrast").textContent = t.highContrast;
+    $("txt-packageleaflet").textContent = t.packageLeaflet;
+    $("txt-readnote").textContent = t.readNote;
+    $("concept-tag").textContent = t.conceptTag;
+    $("concept-line").textContent = t.conceptLine;
+    $("txt-banner").textContent = t.banner;
+
+    // translated section headings inherit the chosen language (no lang attr)
+    var titles = document.querySelectorAll(".sec-title[data-sec]");
+    for(var i=0;i<titles.length;i++){
+      var n = titles[i].getAttribute("data-sec");
+      titles[i].textContent = t.sections[n];
+    }
+
+    langButtons.forEach(function(b){
+      b.setAttribute("aria-pressed", b.getAttribute("data-lang")===lang ? "true":"false");
+    });
+  }
+
+  langButtons.forEach(function(b){
+    b.addEventListener("click", function(){ applyLanguage(b.getAttribute("data-lang")); });
+  });
+
+  // accessibility toggles
+  var btnLarge = $("btn-large");
+  var btnContrast = $("btn-contrast");
+
+  btnLarge.addEventListener("click", function(){
+    state.large = !state.large;
+    htmlEl.classList.toggle("large", state.large);
+    btnLarge.setAttribute("aria-pressed", state.large ? "true":"false");
+  });
+  btnContrast.addEventListener("click", function(){
+    state.hc = !state.hc;
+    htmlEl.classList.toggle("hc", state.hc);
+    btnContrast.setAttribute("aria-pressed", state.hc ? "true":"false");
+  });
+
+  applyLanguage("en");
+})();
+</script>
+</body>
+</html>

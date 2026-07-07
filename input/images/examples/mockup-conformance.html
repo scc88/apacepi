@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conformance dashboard — PAXLOVID ePI · Singapore HSA pilot</title>
+<meta name="description" content="Validation health at a glance for a PAXLOVID ePI FHIR document Bundle submission — machine-checkable quality gates for HSA reviewers.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#574fd6; --accent-ink:#3f38b0; --accent-tint:#ecebfb; /* HSA indigo */
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ground); color:var(--ink);
+    font-family:var(--sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-ink);}
+
+  /* Header bar */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+    flex-wrap:wrap;
+    background:var(--surface); border-bottom:1px solid var(--line);
+    padding:.6rem 1rem;
+  }
+  .topbar .brand{display:flex; align-items:center; gap:.6rem; flex-wrap:wrap;}
+  .topbar .brand strong{font-weight:600; letter-spacing:.01em;}
+  .aud-tag{
+    font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.08em;
+    background:var(--accent-tint); color:var(--accent-ink);
+    border:1px solid var(--accent); border-radius:999px; padding:.18rem .55rem;
+  }
+  .pilot-link{
+    font-family:var(--mono); font-size:.72rem; text-decoration:none;
+    color:var(--accent-ink); border:1px solid var(--line); border-radius:8px;
+    padding:.3rem .6rem; background:var(--surface); white-space:nowrap;
+  }
+  .pilot-link:hover{background:var(--accent-tint);}
+
+  .wrap{max-width:960px; margin:0 auto; padding:1.25rem 1rem 2.5rem;}
+
+  .mono-label{
+    font-family:var(--mono); font-size:.66rem; text-transform:uppercase;
+    letter-spacing:.1em; color:var(--faint);
+  }
+
+  /* Submission header card */
+  .subhead{
+    background:var(--surface); border:1px solid var(--line); border-radius:14px;
+    padding:1.1rem 1.15rem; margin-bottom:1rem;
+    display:grid; grid-template-columns:1fr auto; gap:1rem; align-items:center;
+  }
+  .subhead h1{
+    font-family:var(--serif); font-weight:600; font-size:1.4rem; margin:.25rem 0 .35rem;
+  }
+  .subhead .meta{font-family:var(--mono); font-size:.75rem; color:var(--muted);}
+  .status-line{
+    display:inline-flex; align-items:center; gap:.4rem; margin-top:.6rem;
+    font-size:.85rem; font-weight:600; color:var(--warn);
+    background:var(--warn-tint); border:1px solid var(--warn); border-radius:999px;
+    padding:.28rem .7rem;
+  }
+  .status-line .dot{width:.55rem; height:.55rem; border-radius:50%; background:var(--warn); flex:none;}
+  .score{
+    text-align:center; border-left:1px solid var(--line); padding-left:1rem; min-width:120px;
+  }
+  .score .num{font-family:var(--serif); font-size:2.6rem; font-weight:600; line-height:1; color:var(--accent-ink);}
+  .score .den{font-family:var(--mono); font-size:.9rem; color:var(--muted);}
+  .score .cap{margin-top:.3rem;}
+
+  /* Summary tiles */
+  .tiles{display:grid; grid-template-columns:repeat(3,1fr); gap:.7rem; margin-bottom:1.3rem;}
+  .tile{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:.85rem .9rem; border-left-width:4px;
+  }
+  .tile.ok{border-left-color:var(--ok);}
+  .tile.warn{border-left-color:var(--warn);}
+  .tile.crit{border-left-color:var(--crit);}
+  .tile .n{font-family:var(--serif); font-size:1.9rem; font-weight:600; line-height:1;}
+  .tile.ok .n{color:var(--ok);}
+  .tile.warn .n{color:var(--warn);}
+  .tile.crit .n{color:var(--crit);}
+  .tile .lbl{margin-top:.3rem;}
+
+  /* Filter controls */
+  .controls{display:flex; flex-wrap:wrap; gap:.4rem; align-items:center; margin-bottom:1rem;}
+  .controls .mono-label{margin-right:.2rem;}
+  .filter-btn{
+    font-family:var(--mono); font-size:.7rem; text-transform:uppercase; letter-spacing:.05em;
+    background:var(--surface); color:var(--muted);
+    border:1px solid var(--line); border-radius:999px; padding:.3rem .65rem; cursor:pointer;
+  }
+  .filter-btn[aria-pressed="true"]{
+    background:var(--accent); color:#fff; border-color:var(--accent);
+  }
+  .filter-btn:hover{border-color:var(--accent);}
+
+  /* Category group */
+  .cat{margin-bottom:1.2rem;}
+  .cat > h2{
+    font-family:var(--sans); font-size:.95rem; font-weight:600; margin:0 0 .55rem;
+    display:flex; align-items:baseline; gap:.5rem;
+  }
+  .cat > h2 .count{font-family:var(--mono); font-size:.7rem; color:var(--faint); font-weight:400;}
+
+  /* Check rows (details) */
+  .check{
+    background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    margin-bottom:.5rem; overflow:hidden;
+  }
+  .check[hidden]{display:none;}
+  .check summary{
+    display:flex; align-items:center; gap:.7rem; padding:.7rem .85rem; cursor:pointer;
+    list-style:none; outline-offset:-2px;
+  }
+  .check summary::-webkit-details-marker{display:none;}
+  .check summary .title{flex:1; font-size:.9rem; min-width:0;}
+  .check summary .chev{
+    font-family:var(--mono); color:var(--faint); transition:transform .18s ease; flex:none;
+  }
+  .check[open] summary .chev{transform:rotate(90deg);}
+
+  .chip{
+    font-family:var(--mono); font-size:.66rem; font-weight:700; text-transform:uppercase;
+    letter-spacing:.06em; border-radius:6px; padding:.22rem .5rem; flex:none;
+    border:1px solid; display:inline-flex; align-items:center; gap:.3rem;
+  }
+  .chip.ok{color:var(--ok); background:var(--ok-tint); border-color:var(--ok);}
+  .chip.warn{color:var(--warn); background:var(--warn-tint); border-color:var(--warn);}
+  .chip.crit{color:var(--crit); background:var(--crit-tint); border-color:var(--crit);}
+  .chip .glyph{font-size:.8rem; line-height:1;}
+
+  .detail{
+    padding:0 .85rem .85rem 3.5rem; font-size:.85rem; color:var(--muted);
+    border-top:1px solid var(--line); padding-top:.7rem; margin-top:0;
+  }
+  .detail p{margin:.2rem 0;}
+  .detail code{font-family:var(--mono); font-size:.78rem; background:var(--surface-2); padding:.05rem .3rem; border-radius:4px; color:var(--ink);}
+  .detail ul{margin:.4rem 0 0; padding-left:1.1rem;}
+  .detail li{margin:.15rem 0;}
+  .detail .advisory{
+    margin-top:.5rem; padding:.5rem .6rem; background:var(--warn-tint);
+    border:1px solid var(--warn); border-radius:8px; color:#7a5312;
+  }
+  .detail .advisory strong{color:var(--warn);}
+
+  /* Section pill grid inside details */
+  .pillrow{display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.5rem;}
+  .pill{
+    font-family:var(--mono); font-size:.72rem; color:var(--ok);
+    background:var(--ok-tint); border:1px solid var(--ok); border-radius:6px; padding:.18rem .45rem;
+  }
+  .pill.amber{color:var(--warn); background:var(--warn-tint); border-color:var(--warn);}
+  .pill .tick{margin-right:.25rem;}
+
+  /* Inventory mini-table */
+  .invtable{width:100%; border-collapse:collapse; margin-top:.5rem; font-size:.82rem;}
+  .invtable th, .invtable td{text-align:left; padding:.3rem .5rem; border-bottom:1px solid var(--line);}
+  .invtable th{font-family:var(--mono); font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; color:var(--faint); font-weight:400;}
+  .invtable td.num{font-family:var(--mono); text-align:right; color:var(--ink);}
+  .invtable tfoot td{font-weight:600; color:var(--ink);}
+  .scrollx{overflow-x:auto;}
+
+  :focus-visible{outline:2.5px solid var(--accent); outline-offset:2px; border-radius:6px;}
+
+  footer.disc{
+    margin-top:2rem; padding-top:1rem; border-top:1px solid var(--line);
+    font-size:.72rem; color:var(--faint); line-height:1.55;
+  }
+
+  @media (max-width:560px){
+    .tiles{grid-template-columns:1fr;}
+    .subhead{grid-template-columns:1fr;}
+    .score{border-left:none; border-top:1px solid var(--line); padding-left:0; padding-top:.8rem; text-align:left; display:flex; align-items:baseline; gap:.6rem;}
+    .score .cap{margin-top:0;}
+    .detail{padding-left:.85rem;}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important;}
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <strong>PAXLOVID · Singapore ePI</strong>
+    <span class="aud-tag">HSA / Regulator view</span>
+  </div>
+  <a class="pilot-link" href="../sg-epi-pilot.html" target="_top">&#8617; ePI Pilot</a>
+</header>
+
+<main class="wrap">
+
+  <!-- Submission header -->
+  <section class="subhead" aria-label="Submission under review">
+    <div>
+      <div class="mono-label">Submission under review</div>
+      <h1>PAXLOVID ePI</h1>
+      <div class="meta">PAXH-SIN-0126 · HL7 FHIR R5 document Bundle</div>
+      <div class="status-line"><span class="dot" aria-hidden="true"></span>Ready for review — 2 advisories</div>
+    </div>
+    <div class="score" aria-label="Conformance score: 12 of 14 checks passed">
+      <span class="num">12</span><span class="den">/14</span>
+      <div class="cap mono-label">checks passed</div>
+    </div>
+  </section>
+
+  <!-- Summary tiles -->
+  <section class="tiles" aria-label="Summary">
+    <div class="tile ok">
+      <div class="n">12</div>
+      <div class="lbl mono-label">Passed</div>
+    </div>
+    <div class="tile warn">
+      <div class="n">2</div>
+      <div class="lbl mono-label">Advisory</div>
+    </div>
+    <div class="tile crit">
+      <div class="n">0</div>
+      <div class="lbl mono-label">Failed</div>
+    </div>
+  </section>
+
+  <!-- Filter controls -->
+  <div class="controls" role="group" aria-label="Filter checks by status">
+    <span class="mono-label">Show</span>
+    <button class="filter-btn" data-filter="all" aria-pressed="true">All 14</button>
+    <button class="filter-btn" data-filter="ok" aria-pressed="false">Passed</button>
+    <button class="filter-btn" data-filter="warn" aria-pressed="false">Advisory</button>
+    <button class="filter-btn" data-filter="crit" aria-pressed="false">Failed</button>
+    <button class="filter-btn" id="expandAll" data-toggle-all aria-pressed="false" style="margin-left:auto;">Expand all</button>
+  </div>
+
+  <!-- Structure -->
+  <section class="cat">
+    <h2>Structure <span class="count">4 checks</span></h2>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">Bundle type is <code>document</code></span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p><code>Bundle.type = "document"</code> — the ePI is a signed, self-contained document Bundle as required by the IG.</p>
+      </div>
+    </details>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">First entry is a <code>Composition</code></span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>In a document Bundle the first entry must be a Composition. <code>Bundle.entry[0].resource = Composition</code> ✔.</p>
+      </div>
+    </details>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">152 resources present</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>Bundle contains <code>152</code> resources: 1 Composition + 151 shared product/clinical resources. Entry count matches the declared inventory.</p>
+      </div>
+    </details>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">Both SmPC and PIL Compositions present</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>Two Compositions share the same 151 resources:</p>
+        <ul>
+          <li>SmPC — document <code>PAXH-SIN-0126/0</code>, 7 sections.</li>
+          <li>PIL — document <code>PAXH-SIN-0126/PIL/0</code>, 6 sections.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- Required sections -->
+  <section class="cat">
+    <h2>Required sections present <span class="count">2 checks</span></h2>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">SmPC sections 1–7 present</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>All 7 mandatory SmPC top-level sections found:</p>
+        <div class="pillrow">
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>1 Name</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>2 Composition</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>3 Pharmaceutical form</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>4 Clinical particulars</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>5 Pharmacology</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>6 Pharmaceutical particulars</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>7 MA holder</span>
+        </div>
+      </div>
+    </details>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">PIL sections 1–6 present</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>All 6 mandatory PIL top-level sections found:</p>
+        <div class="pillrow">
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>1 What it is</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>2 Before you take</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>3 How to take</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>4 Side effects</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>5 How to store</span>
+          <span class="pill"><span class="tick" aria-hidden="true">&#10003;</span>6 Contents &amp; further info</span>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- Resource inventory -->
+  <section class="cat">
+    <h2>Resource inventory <span class="count">2 checks</span></h2>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">Inventory reconciles: 1 Composition + 151 shared resources</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>Resource-type tally matches the declared 152 total.</p>
+        <div class="scrollx">
+          <table class="invtable">
+            <thead><tr><th>Resource type</th><th style="text-align:right;">Count</th></tr></thead>
+            <tbody>
+              <tr><td>Composition</td><td class="num">1</td></tr>
+              <tr><td>ClinicalUseDefinition</td><td class="num">118</td></tr>
+              <tr><td>Ingredient</td><td class="num">22</td></tr>
+              <tr><td>SubstanceDefinition</td><td class="num">3</td></tr>
+              <tr><td>ManufacturedItemDefinition</td><td class="num">2</td></tr>
+              <tr><td>Organization</td><td class="num">1</td></tr>
+              <tr><td>MedicinalProductDefinition</td><td class="num">1</td></tr>
+              <tr><td>RegulatedAuthorization</td><td class="num">1</td></tr>
+              <tr><td>AdministrableProductDefinition</td><td class="num">1</td></tr>
+              <tr><td>PackagedProductDefinition</td><td class="num">1</td></tr>
+              <tr><td>MedicationKnowledge</td><td class="num">1</td></tr>
+            </tbody>
+            <tfoot><tr><td>Total</td><td class="num">152</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </details>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">118 ClinicalUseDefinition resources by type</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>ClinicalUseDefinition breakdown reconciles to 118:</p>
+        <div class="scrollx">
+          <table class="invtable">
+            <thead><tr><th>Category</th><th style="text-align:right;">Count</th></tr></thead>
+            <tbody>
+              <tr><td>Indication</td><td class="num">1</td></tr>
+              <tr><td>Contraindication</td><td class="num">41</td></tr>
+              <tr><td>Interaction</td><td class="num">58</td></tr>
+              <tr><td>Adverse effect (undesirable)</td><td class="num">14</td></tr>
+              <tr><td>Warning</td><td class="num">4</td></tr>
+            </tbody>
+            <tfoot><tr><td>Total</td><td class="num">118</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- Reference integrity -->
+  <section class="cat">
+    <h2>Reference integrity <span class="count">1 check</span></h2>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">All Composition section references resolve</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>Every <code>Composition.section.entry</code> reference across the SmPC and PIL resolves to a resource contained in the Bundle. No dangling or orphaned references detected.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- Terminology binding -->
+  <section class="cat">
+    <h2>Terminology binding <span class="count">3 checks</span></h2>
+
+    <details class="check" data-status="ok">
+      <summary>
+        <span class="chip ok"><span class="glyph" aria-hidden="true">&#10003;</span>PASS</span>
+        <span class="title">Preferred code systems bound</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>Coded elements bind to the IG's preferred systems (SNOMED CT, EDQM standard terms, UCUM for quantities). No unbound required-binding elements found.</p>
+      </div>
+    </details>
+
+    <details class="check" data-status="warn">
+      <summary>
+        <span class="chip warn"><span class="glyph" aria-hidden="true">&#9888;</span>WARN</span>
+        <span class="title">HSA code-system URLs are placeholders</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>2 HSA-specific code-system URLs use placeholder namespaces:</p>
+        <div class="pillrow">
+          <span class="pill amber"><span class="tick" aria-hidden="true">&#9888;</span>document-id system</span>
+          <span class="pill amber"><span class="tick" aria-hidden="true">&#9888;</span>section-code system</span>
+        </div>
+        <div class="advisory"><strong>Advisory:</strong> 2 HSA code-system URLs (document-id, section-code) are placeholders — confirm with HSA. Does not block review.</div>
+      </div>
+    </details>
+
+    <details class="check" data-status="warn">
+      <summary>
+        <span class="chip warn"><span class="glyph" aria-hidden="true">&#9888;</span>WARN</span>
+        <span class="title">Document identifier pending confirmation</span>
+        <span class="chev" aria-hidden="true">&#9656;</span>
+      </summary>
+      <div class="detail">
+        <p>The submission carries document identifier <code>PAXH-SIN-0126</code>, which has not yet been validated against an HSA-issued register.</p>
+        <div class="advisory"><strong>Advisory:</strong> document identifier PAXH-SIN-0126 pending HSA confirmation. Does not block review.</div>
+      </div>
+    </details>
+  </section>
+
+  <footer class="disc">
+    Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are placeholders to be confirmed with HSA. Data simplified for demonstration.
+  </footer>
+</main>
+
+<script>
+(function(){
+  var checks = Array.prototype.slice.call(document.querySelectorAll('.check'));
+  var filterBtns = Array.prototype.slice.call(document.querySelectorAll('.filter-btn[data-filter]'));
+  var catSections = Array.prototype.slice.call(document.querySelectorAll('.cat'));
+
+  function applyFilter(f){
+    checks.forEach(function(c){
+      var show = (f === 'all') || (c.getAttribute('data-status') === f);
+      c.hidden = !show;
+    });
+    // Hide category headers that have no visible checks
+    catSections.forEach(function(sec){
+      var any = sec.querySelector('.check:not([hidden])');
+      sec.style.display = any ? '' : 'none';
+    });
+  }
+
+  filterBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      filterBtns.forEach(function(b){ b.setAttribute('aria-pressed', b === btn ? 'true' : 'false'); });
+      applyFilter(btn.getAttribute('data-filter'));
+    });
+  });
+
+  var expandBtn = document.getElementById('expandAll');
+  expandBtn.addEventListener('click', function(){
+    var expanded = expandBtn.getAttribute('aria-pressed') === 'true';
+    var next = !expanded;
+    checks.forEach(function(c){ if(!c.hidden) c.open = next; });
+    expandBtn.setAttribute('aria-pressed', String(next));
+    expandBtn.textContent = next ? 'Collapse all' : 'Expand all';
+  });
+})();
+</script>
+</body>
+</html>

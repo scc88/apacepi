@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portfolio Surveillance Queries — Singapore ePI (HSA / Regulator view)</title>
+<meta name="description" content="Cross-label safety queries over structured FHIR ePI data — ask one pharmacovigilance question across many products at once, a capability impossible with static PDF labels.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#574fd6; --accent-ink:#3d37a3; --accent-tint:#ecebfb; /* HSA/Regulator indigo */
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    line-height:1.5; -webkit-font-smoothing:antialiased;
+  }
+  a{color:var(--accent-ink)}
+
+  /* header bar */
+  .bar{
+    display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; justify-content:space-between;
+    background:var(--surface); border-bottom:1px solid var(--line);
+    padding:.6rem 1rem; position:sticky; top:0; z-index:5;
+  }
+  .bar-l{display:flex; flex-wrap:wrap; gap:.5rem .75rem; align-items:center}
+  .brand{font-family:var(--mono); font-size:.8rem; letter-spacing:.06em; text-transform:uppercase; color:var(--ink)}
+  .tag{
+    font-family:var(--mono); font-size:.66rem; letter-spacing:.08em; text-transform:uppercase;
+    background:var(--accent-tint); color:var(--accent-ink); border:1px solid var(--accent);
+    padding:.15rem .5rem; border-radius:999px; white-space:nowrap;
+  }
+  .backlink{
+    font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; text-decoration:none;
+    color:var(--accent-ink); border:1px solid var(--line); border-radius:8px; padding:.3rem .6rem;
+    background:var(--surface); white-space:nowrap;
+  }
+  .backlink:hover{background:var(--accent-tint); border-color:var(--accent)}
+
+  main{max-width:1020px; margin:0 auto; padding:1.25rem 1rem 2.5rem}
+
+  .lede{margin:.25rem 0 1.25rem}
+  h1{font-family:var(--serif); font-size:1.7rem; line-height:1.15; margin:.4rem 0 .5rem}
+  .sub{color:var(--muted); font-size:1rem; margin:0; max-width:60ch}
+  .kicker{font-family:var(--mono); font-size:.7rem; letter-spacing:.12em; text-transform:uppercase; color:var(--accent-ink); margin:0}
+
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:1rem 1.1rem}
+  .card + .card{margin-top:1rem}
+
+  .card-head{display:flex; flex-wrap:wrap; gap:.5rem .75rem; align-items:baseline; justify-content:space-between; margin-bottom:.85rem}
+  .card-title{font-family:var(--mono); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin:0}
+
+  /* illustrative banner */
+  .illus{
+    display:flex; gap:.55rem; align-items:flex-start;
+    background:var(--warn-tint); border:1px solid #e6cf9a; border-radius:10px;
+    padding:.6rem .8rem; margin-bottom:1rem; font-size:.86rem; color:#6b5313;
+  }
+  .illus b{color:#5a4410}
+  .illus .ic{flex:0 0 auto; color:var(--warn); font-weight:700}
+
+  /* query console */
+  .console-hint{font-size:.86rem; color:var(--muted); margin:0 0 .7rem}
+  .qbtns{display:flex; flex-wrap:wrap; gap:.5rem}
+  .qbtn{
+    font-family:var(--sans); font-size:.85rem; cursor:pointer;
+    background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    border-radius:999px; padding:.42rem .85rem; display:inline-flex; align-items:center; gap:.4rem;
+    transition:background .12s ease, border-color .12s ease, color .12s ease;
+  }
+  .qbtn .dot{width:.55rem; height:.55rem; border-radius:50%; background:var(--faint); flex:0 0 auto}
+  .qbtn:hover{border-color:var(--accent); background:var(--accent-tint)}
+  .qbtn[aria-pressed="true"]{background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600}
+  .qbtn[aria-pressed="true"] .dot{background:#fff}
+  .qbtn.all[aria-pressed="true"]{background:var(--ink); border-color:var(--ink)}
+  :focus-visible{outline:3px solid var(--accent); outline-offset:2px; border-radius:6px}
+
+  /* result summary */
+  .summary{
+    display:flex; flex-wrap:wrap; gap:.5rem .9rem; align-items:baseline;
+    margin:1rem 0 .6rem; padding-top:.85rem; border-top:1px dashed var(--line);
+  }
+  .summary .q{font-family:var(--serif); font-size:1.15rem}
+  .count{font-family:var(--mono); font-size:.8rem; letter-spacing:.04em; color:var(--accent-ink); background:var(--accent-tint); border:1px solid var(--accent); padding:.15rem .55rem; border-radius:999px}
+  .clin-note{font-size:.84rem; color:var(--muted); margin:0 0 .8rem; max-width:70ch}
+
+  /* table */
+  .tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:10px}
+  table{border-collapse:collapse; width:100%; min-width:640px; font-size:.88rem}
+  thead th{
+    text-align:left; font-family:var(--mono); font-size:.66rem; letter-spacing:.07em; text-transform:uppercase;
+    color:var(--muted); background:var(--surface-2); padding:.6rem .75rem; border-bottom:1px solid var(--line); white-space:nowrap;
+  }
+  tbody td{padding:.7rem .75rem; border-bottom:1px solid var(--line); vertical-align:top}
+  tbody tr:last-child td{border-bottom:0}
+  tbody tr.hidden{display:none}
+  tbody tr.match td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+  .prod{font-weight:600; font-size:.95rem}
+  .prod .sub2{display:block; font-weight:400; color:var(--muted); font-size:.78rem; margin-top:.1rem}
+  .real-badge{font-family:var(--mono); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; background:var(--accent-tint); color:var(--accent-ink); border:1px solid var(--accent); padding:.05rem .35rem; border-radius:4px; vertical-align:middle; margin-left:.35rem}
+  .fic-badge{font-family:var(--mono); font-size:.6rem; letter-spacing:.06em; text-transform:uppercase; background:var(--surface-2); color:var(--faint); border:1px solid var(--line); padding:.05rem .35rem; border-radius:4px; vertical-align:middle; margin-left:.35rem}
+  .ma{font-family:var(--mono); font-size:.78rem; color:var(--muted); white-space:nowrap}
+
+  /* attribute chips */
+  .attrs{display:flex; flex-wrap:wrap; gap:.3rem}
+  .chip{
+    font-family:var(--mono); font-size:.66rem; letter-spacing:.02em; text-transform:uppercase;
+    border:1px solid var(--line); border-radius:6px; padding:.12rem .4rem; color:var(--faint); background:var(--surface); white-space:nowrap;
+  }
+  .chip.on{color:var(--ink); background:var(--surface-2); border-color:#c9d4d2}
+  .chip.hit{background:var(--accent); border-color:var(--accent); color:#fff; box-shadow:0 0 0 2px var(--accent-tint)}
+  .chip.crit.hit{background:var(--crit); border-color:var(--crit); box-shadow:0 0 0 2px var(--crit-tint)}
+  .chip.warn.hit{background:var(--warn); border-color:var(--warn); box-shadow:0 0 0 2px var(--warn-tint)}
+  .empty-msg{padding:1rem .75rem; color:var(--muted); font-size:.9rem}
+
+  .caption{
+    margin-top:1rem; font-size:.86rem; color:var(--muted); background:var(--accent-tint);
+    border:1px solid var(--accent); border-radius:10px; padding:.75rem .9rem;
+  }
+  .caption b{color:var(--accent-ink)}
+  code{font-family:var(--mono); font-size:.82em; background:var(--surface-2); padding:.05rem .3rem; border-radius:4px; color:var(--accent-ink)}
+
+  footer{max-width:1020px; margin:0 auto; padding:1.25rem 1rem 2rem}
+  .disclaimer{font-size:.76rem; color:var(--faint); line-height:1.55; border-top:1px solid var(--line); padding-top:1rem; max-width:75ch}
+
+  @media (max-width:560px){
+    h1{font-size:1.4rem}
+    main{padding:1rem .8rem 2rem}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-l">
+      <span class="brand">PAXLOVID &middot; Singapore ePI</span>
+      <span class="tag">HSA / Regulator view</span>
+    </div>
+    <a class="backlink" href="../sg-epi-pilot.html" target="_top">&#8617; ePI Pilot</a>
+  </header>
+
+  <main>
+    <div class="lede">
+      <p class="kicker">Portfolio surveillance</p>
+      <h1>Ask one safety question across the whole portfolio</h1>
+      <p class="sub">Structured ePI turns every label into queryable data. Ask a pharmacovigilance
+      question once and it runs across every product at the same time — something you cannot do
+      with a shelf of static PDF labels.</p>
+    </div>
+
+    <section class="card" aria-labelledby="console-h">
+      <div class="illus" role="note">
+        <span class="ic" aria-hidden="true">&#9888;</span>
+        <span><b>Illustrative sample portfolio.</b> Only <b>PAXLOVID</b> is a real product with its
+        true label attributes. The other five products are <b>fictional demonstration data</b> with
+        invented names and attributes, included so queries return varied results.</span>
+      </div>
+
+      <div class="card-head">
+        <h2 class="card-title" id="console-h">Query console</h2>
+      </div>
+      <p class="console-hint">Pick a safety attribute to query across all products. One button is active at a time.</p>
+      <div class="qbtns" role="group" aria-label="Portfolio safety queries">
+        <button type="button" class="qbtn" data-q="sjw" aria-pressed="false"><span class="dot"></span>Contraindicated with St John&rsquo;s Wort</button>
+        <button type="button" class="qbtn" data-q="renal" aria-pressed="false"><span class="dot"></span>Needs renal dose adjustment</button>
+        <button type="button" class="qbtn" data-q="lactose" aria-pressed="false"><span class="dot"></span>Contains lactose</button>
+        <button type="button" class="qbtn" data-q="warfarin" aria-pressed="false"><span class="dot"></span>Interacts with warfarin</button>
+        <button type="button" class="qbtn" data-q="cyp3a" aria-pressed="false"><span class="dot"></span>Contains a CYP3A inhibitor</button>
+        <button type="button" class="qbtn all" data-q="all" aria-pressed="true"><span class="dot"></span>Show all</button>
+      </div>
+
+      <div class="summary">
+        <span class="q" id="query-title">All products</span>
+        <span class="count" id="query-count" aria-live="polite">6 of 6 products shown</span>
+      </div>
+      <p class="clin-note" id="query-note">Every product in the illustrative portfolio, with its structured safety attributes.</p>
+
+      <div class="tbl-wrap">
+        <table aria-describedby="query-count">
+          <thead>
+            <tr>
+              <th scope="col">Product</th>
+              <th scope="col">Marketing auth.</th>
+              <th scope="col">Structured safety attributes</th>
+            </tr>
+          </thead>
+          <tbody id="rows"><!-- rows injected by JS --></tbody>
+        </table>
+      </div>
+      <p class="empty-msg" id="empty" hidden>No products in this illustrative portfolio match the selected query.</p>
+
+      <p class="caption">
+        This is a <b>cross-label query</b> evaluated over structured
+        <code>ClinicalUseDefinition</code> (contraindications &amp; interactions),
+        <code>Ingredient</code> / <code>SubstanceDefinition</code> (lactose, CYP3A inhibitor) and
+        renal-dosing resources inside each product&rsquo;s FHIR ePI Bundle. Because every label is
+        machine-readable data rather than a PDF, a regulator can screen the whole portfolio in one
+        step — a pharmacovigilance capability that is <b>only possible with structured ePI</b>.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <p class="disclaimer">
+      Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by
+      the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are
+      placeholders to be confirmed with HSA. Data simplified for demonstration.
+    </p>
+  </footer>
+
+<script>
+(function(){
+  "use strict";
+
+  // Attribute keys: lactose, renal, sjw (contraindicated w/ St John's Wort),
+  // warfarin (interaction), cyp3a (contains a CYP3A inhibitor).
+  // severity: 'crit' for contraindication (SJW), 'warn' for caution interactions/renal, else neutral.
+  var PRODUCTS = [
+    {
+      name:"PAXLOVID", real:true,
+      generic:"nirmatrelvir 150 mg + ritonavir 100 mg", ma:"SIN-PAXH-0126",
+      attrs:{lactose:true, renal:true, sjw:true, warfarin:true, cyp3a:true}
+    },
+    {
+      name:"Rivavox", generic:"riboxetine 40 mg (fictional)", ma:"SIN-DEMO-2011",
+      attrs:{lactose:true, renal:false, sjw:false, warfarin:true, cyp3a:false}
+    },
+    {
+      name:"Nephrocor XR", generic:"telmasoran 25 mg (fictional)", ma:"SIN-DEMO-2042",
+      attrs:{lactose:false, renal:true, sjw:false, warfarin:false, cyp3a:false}
+    },
+    {
+      name:"Cardiluma", generic:"amlofelodine 10 mg (fictional)", ma:"SIN-DEMO-2073",
+      attrs:{lactose:false, renal:false, sjw:true, warfarin:false, cyp3a:true}
+    },
+    {
+      name:"Gastroprin", generic:"omezoline 20 mg (fictional)", ma:"SIN-DEMO-2098",
+      attrs:{lactose:true, renal:false, sjw:false, warfarin:false, cyp3a:false}
+    },
+    {
+      name:"Immunograft", generic:"cyclosarin 50 mg (fictional)", ma:"SIN-DEMO-2115",
+      attrs:{lactose:false, renal:true, sjw:true, warfarin:true, cyp3a:true}
+    }
+  ];
+
+  // Attribute display metadata (order matters for chips)
+  var ATTR_META = [
+    {key:"lactose",  label:"Contains lactose",  sev:null},
+    {key:"renal",    label:"Renal dose adj.",   sev:"warn"},
+    {key:"sjw",      label:"Contraindicated w/ St John's Wort", sev:"crit"},
+    {key:"warfarin", label:"Interacts w/ warfarin", sev:"warn"},
+    {key:"cyp3a",    label:"Contains CYP3A inhibitor", sev:null}
+  ];
+
+  var QUERIES = {
+    all:      {title:"All products", note:"Every product in the illustrative portfolio, with its structured safety attributes.", key:null},
+    sjw:      {title:"Contraindicated with St John's Wort", note:"Products whose ePI carries a ClinicalUseDefinition contraindication against St John's Wort (herbal / depression). Critical tier.", key:"sjw"},
+    renal:    {title:"Needs renal dose adjustment", note:"Products whose ePI specifies dose changes by kidney function (eGFR bands).", key:"renal"},
+    lactose:  {title:"Contains lactose", note:"Products whose Ingredient / SubstanceDefinition resources include lactose — relevant to sugar-intolerant patients.", key:"lactose"},
+    warfarin: {title:"Interacts with warfarin", note:"Products with a ClinicalUseDefinition interaction against warfarin (e.g. monitor INR). Warning tier.", key:"warfarin"},
+    cyp3a:    {title:"Contains a CYP3A inhibitor", note:"Products whose formulation includes a CYP3A enzyme inhibitor — a driver of many interaction alerts.", key:"cyp3a"}
+  };
+
+  var rowsEl   = document.getElementById("rows");
+  var titleEl  = document.getElementById("query-title");
+  var countEl  = document.getElementById("query-count");
+  var noteEl   = document.getElementById("query-note");
+  var emptyEl  = document.getElementById("empty");
+  var btns     = Array.prototype.slice.call(document.querySelectorAll(".qbtn"));
+
+  function chipFor(meta, product, activeKey){
+    var on = product.attrs[meta.key];
+    var cls = "chip";
+    if(meta.sev) cls += " " + meta.sev;
+    if(on){
+      cls += " on";
+      if(activeKey === meta.key) cls += " hit";
+    }
+    var mark = on ? "" : "";
+    // Build node
+    var span = document.createElement("span");
+    span.className = cls;
+    span.textContent = (on ? "✓ " : "– ") + meta.label;
+    if(activeKey === meta.key && on){
+      span.setAttribute("aria-current","true");
+    }
+    return span;
+  }
+
+  function buildRow(p){
+    var tr = document.createElement("tr");
+    tr.dataset.name = p.name;
+
+    // product cell
+    var tdP = document.createElement("td");
+    var strong = document.createElement("span");
+    strong.className = "prod";
+    strong.textContent = p.name;
+    var badge = document.createElement("span");
+    badge.className = p.real ? "real-badge" : "fic-badge";
+    badge.textContent = p.real ? "Real" : "Fictional";
+    strong.appendChild(badge);
+    var sub = document.createElement("span");
+    sub.className = "sub2";
+    sub.textContent = p.generic;
+    tdP.appendChild(strong);
+    tdP.appendChild(sub);
+
+    // marketing auth
+    var tdMa = document.createElement("td");
+    var ma = document.createElement("span");
+    ma.className = "ma";
+    ma.textContent = p.ma;
+    tdMa.appendChild(ma);
+
+    // attributes
+    var tdA = document.createElement("td");
+    var wrap = document.createElement("div");
+    wrap.className = "attrs";
+    tdA.appendChild(wrap);
+
+    tr.appendChild(tdP);
+    tr.appendChild(tdMa);
+    tr.appendChild(tdA);
+    return tr;
+  }
+
+  // pre-build all rows once
+  var rowMap = {};
+  PRODUCTS.forEach(function(p){
+    var tr = buildRow(p);
+    rowMap[p.name] = tr;
+    rowsEl.appendChild(tr);
+  });
+
+  function render(q){
+    var def = QUERIES[q] || QUERIES.all;
+    var activeKey = def.key;
+    var shown = 0;
+
+    PRODUCTS.forEach(function(p){
+      var tr = rowMap[p.name];
+      var isMatch = activeKey === null ? true : !!p.attrs[activeKey];
+
+      // rebuild chips (to update hit state)
+      var wrap = tr.querySelector(".attrs");
+      wrap.innerHTML = "";
+      ATTR_META.forEach(function(meta){
+        wrap.appendChild(chipFor(meta, p, activeKey));
+      });
+
+      if(isMatch){
+        tr.classList.remove("hidden");
+        if(activeKey !== null) tr.classList.add("match"); else tr.classList.remove("match");
+        shown++;
+      }else{
+        tr.classList.add("hidden");
+        tr.classList.remove("match");
+      }
+    });
+
+    titleEl.textContent = def.title;
+    if(activeKey === null){
+      countEl.textContent = shown + " of " + PRODUCTS.length + " products shown";
+    }else{
+      countEl.textContent = shown + " of " + PRODUCTS.length + " products match";
+    }
+    noteEl.textContent = def.note;
+    emptyEl.hidden = shown !== 0;
+
+    btns.forEach(function(b){
+      b.setAttribute("aria-pressed", b.dataset.q === q ? "true" : "false");
+    });
+  }
+
+  btns.forEach(function(b){
+    b.addEventListener("click", function(){
+      render(b.dataset.q);
+    });
+  });
+
+  render("all");
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAXLOVID Renal-Dose Calculator · Singapore ePI</title>
+<meta name="description" content="Interactive renal-dose calculator for PAXLOVID (nirmatrelvir/ritonavir) — enter an eGFR to get the exact regimen by kidney-function band. Clinician view for the Singapore HSA ePI pilot.">
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#0d7d7a; --accent-ink:#0a5b59; --accent-tint:#e2f1f0;
+    --crit:#c0392b; --crit-tint:#fbe7e4; --warn:#b7791f; --warn-tint:#fbf1dc; --ok:#2f855a; --ok-tint:#e4f3ea;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--ground); color:var(--ink); font-family:var(--sans);
+    line-height:1.5; -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:860px; margin:0 auto; padding:0 16px 48px}
+
+  /* header */
+  .topbar{
+    background:var(--surface); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:5;
+  }
+  .topbar-in{
+    max-width:860px; margin:0 auto; padding:10px 16px;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  }
+  .brand{font-family:var(--mono); font-size:13px; font-weight:600; letter-spacing:.02em; color:var(--ink)}
+  .tag{
+    font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+    color:#fff; background:var(--accent); padding:3px 8px; border-radius:999px; white-space:nowrap;
+  }
+  .topbar-sp{flex:1 1 auto}
+  .backlink{
+    font-family:var(--mono); font-size:12px; color:var(--accent-ink); text-decoration:none;
+    border:1px solid var(--line); padding:5px 10px; border-radius:8px; white-space:nowrap;
+  }
+  .backlink:hover{background:var(--accent-tint)}
+
+  h1{font-family:var(--serif); font-weight:600; font-size:26px; line-height:1.15; margin:26px 0 6px}
+  .lede{color:var(--muted); margin:0 0 22px; max-width:60ch}
+  .mono-label{font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--faint)}
+
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:12px;
+    padding:18px; margin-bottom:18px;
+  }
+  .card h2{font-family:var(--serif); font-weight:600; font-size:18px; margin:0 0 14px}
+
+  /* input row */
+  .input-grid{display:flex; gap:20px; flex-wrap:wrap; align-items:flex-end}
+  .slider-col{flex:1 1 260px; min-width:220px}
+  .num-col{flex:0 0 auto}
+  label{display:block; font-family:var(--mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:8px}
+  input[type=range]{width:100%; accent-color:var(--accent); height:26px}
+  .numwrap{display:flex; align-items:baseline; gap:8px}
+  input[type=number]{
+    font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:28px; font-weight:600;
+    width:110px; padding:6px 10px; border:1px solid var(--line); border-radius:8px; color:var(--ink);
+    background:var(--surface); text-align:right;
+  }
+  input[type=number]:focus-visible, input[type=range]:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+  .unit{font-family:var(--mono); font-size:12px; color:var(--muted)}
+
+  /* gauge */
+  .gauge{margin-top:22px}
+  .gauge-scale{
+    position:relative; height:44px; border-radius:8px; overflow:hidden;
+    display:flex; border:1px solid var(--line);
+  }
+  .band{position:relative; display:flex; align-items:center; justify-content:center; transition:filter .2s, opacity .2s}
+  .band .bl{font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.03em; text-align:center; padding:0 4px; line-height:1.1}
+  .band.sev{flex:0 0 25%; background:var(--crit-tint); color:#7d2015}
+  .band.mod{flex:0 0 25%; background:var(--warn-tint); color:#7a5210}
+  .band.mild{flex:1 1 50%; background:var(--ok-tint); color:#1f5a3d}
+  .gauge-scale.dim .band{opacity:.45; filter:saturate(.55)}
+  .gauge-scale.dim .band.active{opacity:1; filter:none; box-shadow:inset 0 0 0 2px currentColor}
+  .band.active{font-weight:700}
+  .ticks{display:flex; position:relative; height:20px; margin-top:2px; font-family:var(--mono); font-size:10px; color:var(--faint)}
+  .tick{position:absolute; transform:translateX(-50%)}
+  /* marker */
+  .marker{
+    position:absolute; top:-6px; width:2px; height:56px; background:var(--ink);
+    z-index:3; transition:left .12s ease;
+  }
+  .marker::after{
+    content:""; position:absolute; top:-5px; left:-5px; width:12px; height:12px;
+    background:var(--ink); border-radius:50%; border:2px solid var(--surface);
+  }
+  .gauge-holder{position:relative; padding-top:8px}
+
+  /* result */
+  .result{border-left:4px solid var(--accent); padding-left:0}
+  .band-head{display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:4px}
+  .band-pill{
+    font-family:var(--mono); font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+    padding:4px 9px; border-radius:999px;
+  }
+  .band-pill.mild{background:var(--ok-tint); color:var(--ok)}
+  .band-pill.mod{background:var(--warn-tint); color:var(--warn)}
+  .band-pill.sev{background:var(--crit-tint); color:var(--crit)}
+  .band-title{font-family:var(--serif); font-size:20px; font-weight:600}
+  .regimen-line{font-size:16px; margin:8px 0 2px}
+  .regimen-line strong{color:var(--accent-ink)}
+
+  /* dose table */
+  .table-scroll{overflow-x:auto; margin:14px 0 4px; -webkit-overflow-scrolling:touch}
+  table.dose{border-collapse:collapse; width:100%; min-width:420px; font-variant-numeric:tabular-nums}
+  table.dose th, table.dose td{border:1px solid var(--line); padding:8px 10px; text-align:center}
+  table.dose thead th{background:var(--surface-2); font-family:var(--mono); font-size:11px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted); font-weight:600}
+  table.dose td.rowh{text-align:left; font-weight:600; background:var(--surface-2); font-family:var(--mono); font-size:12px; white-space:nowrap}
+  table.dose td .num{font-family:var(--mono); font-size:16px; font-weight:600}
+
+  /* tablet visual */
+  .tablets-wrap{display:flex; gap:22px; flex-wrap:wrap; margin:14px 0 2px}
+  .tslot{border:1px solid var(--line); border-radius:10px; padding:12px 14px; flex:1 1 180px; min-width:160px; background:var(--surface-2)}
+  .tslot h4{margin:0 0 10px; font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:6px}
+  .pills{display:flex; gap:14px; flex-wrap:wrap}
+  .pillgroup{display:flex; flex-direction:column; align-items:center; gap:6px}
+  .pillrow{display:flex; gap:5px; flex-wrap:wrap; justify-content:center; max-width:120px}
+  .pcount{font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; color:var(--muted)}
+  .pill{width:34px; height:18px; border-radius:9px; border:1px solid rgba(0,0,0,.18); display:inline-block}
+  .pill.nir{background:#f4b6c8; border-color:#d98aa2}
+  .pill.rit{background:#fbfbf8; border-color:#c7cbc7}
+  .empty-slot{color:var(--faint); font-size:13px; font-style:italic}
+
+  /* notes / callouts */
+  .callout{border-radius:10px; padding:12px 14px; margin:12px 0; font-size:14px}
+  .callout .ct{font-family:var(--mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase; font-weight:700; display:block; margin-bottom:4px}
+  .callout.warn{background:var(--warn-tint); color:#6b4a12; border:1px solid #e6cf94}
+  .callout.crit{background:var(--crit-tint); color:#7d2015; border:1px solid #eeb6ac}
+  .callout.info{background:var(--accent-tint); color:var(--accent-ink); border:1px solid #b8ddda}
+  [hidden]{display:none !important}
+
+  /* dialysis toggle */
+  .dtoggle{display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap}
+  .switch{
+    appearance:none; -webkit-appearance:none; cursor:pointer;
+    position:relative; width:46px; height:26px; border-radius:999px; background:var(--line);
+    border:1px solid var(--line); transition:background .2s; flex:0 0 auto;
+  }
+  .switch::after{content:""; position:absolute; top:2px; left:2px; width:20px; height:20px; border-radius:50%; background:#fff; transition:left .2s; box-shadow:0 1px 2px rgba(0,0,0,.25)}
+  .switch[aria-pressed="true"]{background:var(--accent)}
+  .switch[aria-pressed="true"]::after{left:22px}
+  .switch:focus-visible{outline:3px solid var(--accent); outline-offset:2px}
+  .dtoggle label{margin:0; text-transform:none; letter-spacing:0; font-family:var(--sans); font-size:14px; color:var(--ink)}
+
+  .method{font-size:13px; color:var(--muted); margin:10px 0 0}
+  .method li{margin:3px 0}
+
+  footer{margin-top:26px; padding-top:16px; border-top:1px solid var(--line)}
+  footer p{font-size:12px; color:var(--faint); line-height:1.5; margin:0; max-width:80ch}
+
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
+
+  @media (max-width:420px){
+    h1{font-size:22px}
+    input[type=number]{font-size:24px; width:96px}
+    .band .bl{font-size:10px}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none !important}
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="topbar-in">
+      <span class="brand">PAXLOVID · Singapore ePI</span>
+      <span class="tag">Clinician view</span>
+      <span class="topbar-sp"></span>
+      <a class="backlink" href="../sg-epi-pilot.html" target="_top">↩ ePI Pilot</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <h1>Renal-dose calculator</h1>
+    <p class="lede">Enter a patient's estimated glomerular filtration rate (eGFR). The tool returns the exact PAXLOVID (nirmatrelvir 150&nbsp;mg / ritonavir 100&nbsp;mg) regimen for the matching kidney-function band. Course length is always 5 days, started within 5 days of symptom onset.</p>
+
+    <!-- INPUT -->
+    <section class="card" aria-labelledby="in-h">
+      <h2 id="in-h">Patient eGFR</h2>
+      <div class="input-grid">
+        <div class="slider-col">
+          <label for="egfr-range">eGFR (mL/min/1.73m²)</label>
+          <input type="range" id="egfr-range" min="0" max="120" step="1" value="75"
+                 aria-describedby="egfr-help">
+        </div>
+        <div class="num-col">
+          <label for="egfr-num">Value</label>
+          <div class="numwrap">
+            <input type="number" id="egfr-num" min="0" max="120" step="1" value="75"
+                   inputmode="numeric" aria-label="eGFR value in millilitres per minute">
+            <span class="unit">mL/min</span>
+          </div>
+        </div>
+      </div>
+      <p id="egfr-help" class="sr-only">Slider and number field are synchronised, range 0 to 120 millilitres per minute.</p>
+
+      <!-- GAUGE -->
+      <div class="gauge" aria-hidden="true">
+        <div class="gauge-holder">
+          <div class="marker" id="marker" style="left:62.5%"></div>
+          <div class="gauge-scale dim" id="scale">
+            <div class="band sev"  data-band="sev"><span class="bl">&lt;30<br>Severe</span></div>
+            <div class="band mod"  data-band="mod"><span class="bl">30–59<br>Moderate</span></div>
+            <div class="band mild" data-band="mild"><span class="bl">≥60 · No / mild</span></div>
+          </div>
+          <div class="ticks">
+            <span class="tick" style="left:0%">0</span>
+            <span class="tick" style="left:25%">30</span>
+            <span class="tick" style="left:50%">60</span>
+            <span class="tick" style="left:75%">90</span>
+            <span class="tick" style="left:100%">120</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULT -->
+    <section class="card" aria-labelledby="res-h">
+      <h2 id="res-h">Recommended regimen</h2>
+      <div class="result" id="result" role="region" aria-live="polite" aria-atomic="true">
+        <div class="band-head">
+          <span class="band-pill mild" id="pill">No / mild impairment</span>
+          <span class="mono-label" id="bandrange">eGFR ≥ 60</span>
+        </div>
+        <p class="regimen-line" id="regimen"></p>
+
+        <!-- dialysis toggle (severe only) -->
+        <div class="dtoggle" id="dtoggle" hidden>
+          <button type="button" class="switch" id="dsw" aria-pressed="false" aria-labelledby="dlab"></button>
+          <label id="dlab" for="dsw">On haemodialysis today?</label>
+        </div>
+
+        <!-- dose table -->
+        <div class="table-scroll">
+          <table class="dose" id="dosetable">
+            <thead>
+              <tr>
+                <th scope="col">Timing</th>
+                <th scope="col">Nirmatrelvir 150 mg</th>
+                <th scope="col">Ritonavir 100 mg</th>
+              </tr>
+            </thead>
+            <tbody id="dosebody"></tbody>
+          </table>
+        </div>
+
+        <!-- tablet visual -->
+        <div class="tablets-wrap" id="tablets"></div>
+
+        <!-- band-specific callouts -->
+        <div id="callouts"></div>
+      </div>
+
+      <!-- always-on method reminders -->
+      <ul class="method">
+        <li>Swallow tablets whole — do not chew, break or crush.</li>
+        <li>Take with or without food.</li>
+        <li>Missed dose within 8&nbsp;h: take it now and resume schedule; over 8&nbsp;h: skip and take the next dose at the usual time. Never double up.</li>
+      </ul>
+    </section>
+
+    <footer>
+      <p>Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. Driven by the PAXLOVID reference ePI (document PAXH-SIN-0126). Identifiers and HSA code-system URLs are placeholders to be confirmed with HSA. Data simplified for demonstration.</p>
+    </footer>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var range = document.getElementById('egfr-range');
+  var num   = document.getElementById('egfr-num');
+  var scale = document.getElementById('scale');
+  var marker= document.getElementById('marker');
+  var pill  = document.getElementById('pill');
+  var bandrange = document.getElementById('bandrange');
+  var regimen = document.getElementById('regimen');
+  var dosebody= document.getElementById('dosebody');
+  var tablets = document.getElementById('tablets');
+  var callouts= document.getElementById('callouts');
+  var dtoggle = document.getElementById('dtoggle');
+  var dsw     = document.getElementById('dsw');
+  var bandEls = scale.querySelectorAll('.band');
+
+  var MAX = 120;
+  var dialysis = false;
+
+  function pillsHtml(nir, rit){
+    var out = '';
+    out += '<div class="pillgroup">';
+    var nrow = '';
+    for(var i=0;i<nir;i++){ nrow += '<span class="pill nir"></span>'; }
+    out += '<div class="pillrow">'+ (nir? nrow : '') +'</div>';
+    out += '<span class="pcount">'+nir+' × pink nir</span></div>';
+    out += '<div class="pillgroup">';
+    var rrow = '';
+    for(var j=0;j<rit;j++){ rrow += '<span class="pill rit"></span>'; }
+    out += '<div class="pillrow">'+ (rit? rrow : '') +'</div>';
+    out += '<span class="pcount">'+rit+' × white rit</span></div>';
+    return out;
+  }
+
+  function slot(title, symbol, nir, rit){
+    if(nir===null){
+      return '<div class="tslot"><h4>'+symbol+' '+title+'</h4><span class="empty-slot">No dose</span></div>';
+    }
+    return '<div class="tslot"><h4>'+symbol+' '+title+'</h4><div class="pills">'+pillsHtml(nir,rit)+'</div></div>';
+  }
+
+  function classify(v){
+    if(v>=60) return 'mild';
+    if(v>=30) return 'mod';
+    return 'sev';
+  }
+
+  function render(){
+    var v = clamp(parseInt(num.value,10));
+    var band = classify(v);
+
+    // marker + scale
+    marker.style.left = (v/MAX*100) + '%';
+    for(var i=0;i<bandEls.length;i++){
+      bandEls[i].classList.toggle('active', bandEls[i].getAttribute('data-band')===band);
+    }
+
+    // dialysis toggle visibility
+    if(band==='sev'){
+      dtoggle.hidden = false;
+    } else {
+      dtoggle.hidden = true;
+      dialysis = false;
+      dsw.setAttribute('aria-pressed','false');
+    }
+
+    var rows = '';
+    var tabHtml = '';
+    var coHtml = '';
+
+    if(band==='mild'){
+      pill.className = 'band-pill mild';
+      pill.textContent = 'No / mild impairment';
+      bandrange.textContent = 'eGFR ≥ 60';
+      regimen.innerHTML = '<strong>2 nirmatrelvir + 1 ritonavir</strong>, twice daily, for 5 days.';
+      rows = row('☀ Morning · Days 1–5','2','1') + row('🌙 Evening · Days 1–5','2','1');
+      tabHtml = slot('Morning (each day)','☀','2','1') + slot('Evening (each day)','🌙','2','1');
+    }
+    else if(band==='mod'){
+      pill.className = 'band-pill mod';
+      pill.textContent = 'Moderate impairment';
+      bandrange.textContent = 'eGFR 30 to < 60';
+      regimen.innerHTML = '<strong>1 nirmatrelvir + 1 ritonavir</strong>, twice daily, for 5 days.';
+      rows = row('☀ Morning · Days 1–5','1','1') + row('🌙 Evening · Days 1–5','1','1');
+      tabHtml = slot('Morning (each day)','☀','1','1') + slot('Evening (each day)','🌙','1','1');
+      coHtml += callout('warn','Pack surplus','The standard daily blister card contains 4 nirmatrelvir + 2 ritonavir. This reduced regimen uses fewer tablets than the pack provides — extra tablets will remain. Dispense/counsel accordingly.');
+    }
+    else { // sev
+      pill.className = 'band-pill sev';
+      pill.textContent = 'Severe impairment';
+      bandrange.textContent = 'eGFR < 30 · incl. haemodialysis';
+      regimen.innerHTML = '<strong>Day 1:</strong> 2 nirmatrelvir + 1 ritonavir once. <strong>Days 2–5:</strong> 1 nirmatrelvir + 1 ritonavir once daily.';
+      rows = row('Day 1 · single dose','2','1') + row('Days 2–5 · once daily','1','1');
+      tabHtml = slot('Day 1 (once)','●','2','1') + slot('Days 2–5 (once daily)','○','1','1');
+      coHtml += callout('crit','Pack contains more than needed','⚠ The daily pack holds more tablets than this once-daily regimen requires. Do not take the full card. Take only the dose shown above each day; discard or set aside the surplus tablets.');
+      if(dialysis){
+        coHtml += callout('info','Haemodialysis timing','Administer the dose AFTER haemodialysis.');
+      }
+    }
+
+    dosebody.innerHTML = rows;
+    tablets.innerHTML = tabHtml;
+    callouts.innerHTML = coHtml;
+  }
+
+  function row(label, nir, rit){
+    return '<tr><td class="rowh">'+label+'</td><td><span class="num">'+nir+'</span></td><td><span class="num">'+rit+'</span></td></tr>';
+  }
+  function callout(type, title, body){
+    return '<div class="callout '+type+'"><span class="ct">'+title+'</span>'+body+'</div>';
+  }
+
+  function clamp(v){
+    if(isNaN(v)) v = 0;
+    if(v<0) v=0; if(v>MAX) v=MAX;
+    return v;
+  }
+
+  // sync handlers
+  function fromRange(){ num.value = range.value; render(); }
+  function fromNum(){
+    var v = clamp(parseInt(num.value,10));
+    range.value = v;
+    render();
+  }
+  range.addEventListener('input', fromRange);
+  num.addEventListener('input', fromNum);
+  num.addEventListener('blur', function(){ num.value = clamp(parseInt(num.value,10)); range.value = num.value; render(); });
+
+  dsw.addEventListener('click', function(){
+    dialysis = !dialysis;
+    dsw.setAttribute('aria-pressed', dialysis ? 'true':'false');
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
