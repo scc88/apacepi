@@ -90,7 +90,6 @@ This pilot and its reference materials are illustrative and under active develop
   <div class="step"><div class="num"></div><div class="sbody"><div class="st">Read the reference instance</div><p>Review the worked <a href="Bundle-epi-paxlovid-sgp-smpc.html">PAXLOVID Singapore SmPC Bundle</a> — the golden-standard ePI document for the pilot.</p></div></div>
   <div class="step"><div class="num"></div><div class="sbody"><div class="st">Follow the Build Guide</div><p>The <a href="buildguide.html">ePI Build Guide (SG)</a> explains, resource by resource and in build order, how the reference document was constructed and what you change for your own product.</p></div></div>
   <div class="step"><div class="num"></div><div class="sbody"><div class="st">Apply terminology &amp; best practice</div><p>Bind elements to the <a href="terminology.html">preferred controlled terminologies</a> and structure narrative per the guide's technical best practices.</p></div></div>
-  <div class="step"><div class="num"></div><div class="sbody"><div class="st">Preview the rendering</div><p>See how structured ePI data renders into localized leaflets on the <a href="appendix2.html">Regional Showcase</a>.</p></div></div>
 </div>
 
 <div class="section-title" id="reference">Reference instance &amp; source</div>
@@ -101,14 +100,10 @@ This pilot and its reference materials are illustrative and under active develop
   <a href="https://raw.githubusercontent.com/scc88/aseanepi/main/input/instances/Bundle-epi-paxlovid-sgp-smpc.xml">⬇ Raw XML</a>
 </div>
 
-<div class="section-title" id="showcase">Interactive HTML showcase</div>
-<p>See how a single structured ePI data set renders into locally-compliant, patient-friendly digital leaflets across the region. Open any interactive HTML rendering below, or browse them all on the <a href="appendix2.html">Regional Showcase</a>.</p>
+<div class="section-title" id="showcase">Singapore ePI showcase</div>
+<p>See the pilot's structured PAXLOVID data rendered as an interactive Singapore SmPC ePI.</p>
 <div class="link-row">
-  <a href="examples/epi-asean-template.html">ASEAN Core Template</a>
-  <a href="examples/epi-indonesia-template.html">Indonesia (BPOM)</a>
-  <a href="examples/epi-malaysia-rimup.html">Malaysia (RiMUP)</a>
-  <a href="examples/epi-thailand.html">Thailand PIL</a>
-  <a href="examples/epi-philippines-template.html">Philippines PIL</a>
+  <a href="Bundle-epi-paxlovid-sgp-smpc.html">📱 Paxlovid — Singapore SmPC (ePI)</a>
 </div>
 
 <div class="section-title" id="build">Build instructions</div>
