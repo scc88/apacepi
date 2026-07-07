@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Batch-specific ePI variants — concept mockup</title>
+<meta name="description" content="Illustrative mockup showing two batch formulation variants of one ePI that share all clinical content and differ only in the tablet formulation — Singapore HSA ePI pilot." />
+<style>
+  :root{
+    --ground:#f5f7f7; --surface:#ffffff; --surface-2:#eef2f2;
+    --ink:#14201f; --muted:#566866; --faint:#849795; --line:#dde5e4;
+    --accent:#6d28d9; --accent-ink:#5b21b6; --accent-tint:#f1ebfc;   /* variants = violet */
+    --vary:#b7791f; --vary-tint:#fbf1dc; --vary-line:#e9c877;         /* batch-specific = amber */
+    --common:#0d7d7a; --common-tint:#e2f1f0;                          /* shared = teal */
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono","Cascadia Code",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);line-height:1.6}
+  .wrap{max-width:960px;margin:0 auto;padding:0 20px}
+  a{color:var(--accent-ink)}
+  h1,h2,h3{margin:0;text-wrap:balance}
+
+  /* header bar */
+  .topbar{background:var(--surface);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  .topbar .wrap{display:flex;align-items:center;gap:12px;padding:11px 20px}
+  .brand{font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.02em}
+  .brand b{color:var(--accent-ink)}
+  .vtag{font-family:var(--mono);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);background:var(--accent-tint);padding:3px 9px;border-radius:999px}
+  .back{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted);text-decoration:none}
+  .back:hover{color:var(--accent-ink)}
+
+  /* hero */
+  .hero{padding:34px 0 8px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent-ink);font-weight:600}
+  .hero h1{font-family:var(--serif);font-weight:600;font-size:2rem;line-height:1.1;margin:10px 0 12px;letter-spacing:-.01em}
+  .hero p{color:var(--muted);max-width:64ch;margin:0}
+
+  /* scenario callout */
+  .scenario{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:24px 0 6px;background:var(--surface)}
+  .scenario .col{padding:16px 18px}
+  .scenario .col+.col{border-left:1px solid var(--line)}
+  .scenario .k{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;margin-bottom:6px}
+  .scenario .col.share .k{color:var(--common)} .scenario .col.diff .k{color:var(--vary)}
+  .scenario p{margin:0;font-size:.9rem;color:var(--muted)}
+  .scenario b{color:var(--ink)}
+
+  /* controls */
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin:26px 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .controls .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--faint)}
+  .seg{display:inline-flex;gap:6px}
+  .seg button{font-family:var(--sans);cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:8px 14px;font-size:.86rem;display:inline-flex;align-items:center;gap:8px;transition:all .15s}
+  .seg button .dot{width:14px;height:14px;border-radius:50%;border:1px solid var(--faint);flex:none}
+  .seg button[data-v="white"] .dot{background:#fff;border-color:#94a3b8}
+  .seg button[data-v="red"] .dot{background:#d1352b;border-color:#b91c1c}
+  .seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-tint);color:var(--accent-ink);font-weight:600}
+  .seg button:focus-visible,.toggle:focus-visible{outline:2px solid var(--accent-ink);outline-offset:2px}
+  .toggle{margin-left:auto;cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:9px;padding:8px 14px;font-size:.84rem}
+  .toggle[aria-pressed="true"]{background:var(--vary-tint);border-color:var(--vary-line);color:#7a5310;font-weight:600}
+
+  /* variant meta strip */
+  .vmeta{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+  .vmeta .m{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:12px 14px}
+  .vmeta .m .ml{font-family:var(--mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);margin-bottom:3px}
+  .vmeta .m .mv{font-size:.9rem;font-weight:600}
+  .vmeta .m.varybadge{border-color:var(--vary-line);background:var(--vary-tint)}
+  .vmeta .m .mv.mono{font-family:var(--mono);font-size:.82rem;color:var(--accent-ink)}
+
+  /* leaflet */
+  .leaflet{border:1px solid var(--line);border-radius:14px;background:var(--surface);overflow:hidden}
+  .leaflet-head{padding:18px 20px;border-bottom:1px solid var(--line);background:var(--surface-2)}
+  .leaflet-head .pn{font-family:var(--serif);font-size:1.25rem;font-weight:600}
+  .leaflet-head .sub{font-size:.85rem;color:var(--muted)}
+  .sec{padding:16px 20px;border-bottom:1px solid var(--line)}
+  .sec:last-child{border-bottom:none}
+  .sec .sh{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .sec .sh h3{font-size:.7rem;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .badge{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:5px;margin-left:auto;flex:none}
+  .badge.common{color:var(--common);background:var(--common-tint)}
+  .badge.vary{color:var(--vary);background:var(--vary-tint)}
+  .sec p{margin:0 0 8px;font-size:.9rem;color:var(--ink)}
+  .sec p:last-child{margin-bottom:0}
+  .sec ul{margin:0;padding-left:20px;font-size:.9rem}
+  .sec.varysec{position:relative}
+  /* highlight-diff mode outlines the batch-specific sections/cells */
+  body.diff .varysec{background:var(--vary-tint)}
+  body.diff .varysec::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--vary)}
+  body.diff .common-inline{opacity:.55}
+
+  /* appearance block */
+  .appear{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .tablet{width:78px;height:78px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:.8rem;font-weight:700;flex:none;box-shadow:inset 0 -6px 12px rgba(0,0,0,.12),0 2px 6px rgba(0,0,0,.12);transition:background .25s,color .25s,border-color .25s}
+  .appear .adesc{flex:1;min-width:200px}
+  .appear .adesc .colour{font-weight:700}
+  .kv{display:flex;flex-wrap:wrap;gap:6px 22px;margin-top:8px}
+  .kv .item{font-size:.85rem}
+  .kv .item .il{color:var(--muted)} .kv .item .il::after{content:": "}
+  .kv .item .iv{font-weight:600}
+  .coat{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .coat .c{font-family:var(--mono);font-size:11px;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:2px 8px}
+  .coat .c.new{background:var(--vary-tint);border-color:var(--vary-line);color:#7a5310}
+  .vnote{margin-top:9px;font-size:.88rem;border:1px solid var(--vary-line);background:var(--vary-tint);border-radius:8px;padding:10px 12px;color:#7a5310;display:flex;gap:9px;align-items:flex-start}
+  .vnote .vn-ic{flex:none}
+  .vnote.none{background:var(--surface-2);border-color:var(--line);color:var(--muted)}
+
+  /* structure panel */
+  .model{margin:30px 0 10px}
+  .model h2{font-family:var(--serif);font-size:1.35rem;font-weight:600;margin-bottom:6px}
+  .model .lead{color:var(--muted);font-size:.95rem;max-width:70ch;margin:0 0 18px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .box{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+  .box .bh{padding:11px 16px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+  .box.share .bh{color:var(--common);background:var(--common-tint)}
+  .box.diff2 .bh{color:var(--vary);background:var(--vary-tint)}
+  .box ul{margin:0;padding:12px 16px 14px;list-style:none;display:flex;flex-direction:column;gap:7px}
+  .box li{font-size:.85rem;display:flex;gap:9px;align-items:baseline}
+  .box li .rt{font-family:var(--mono);font-size:11px;color:var(--accent-ink);flex:none}
+  .box li .d{color:var(--muted);font-size:.8rem}
+  .callout{margin-top:16px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;background:var(--accent-tint);padding:14px 16px;font-size:.88rem;color:#3b2470}
+  .callout b{color:var(--accent-ink)}
+
+  footer{border-top:1px solid var(--line);margin-top:34px;padding:20px 0 40px}
+  .disc{font-family:var(--mono);font-size:11px;color:var(--faint);line-height:1.7;max-width:80ch}
+
+  @media (max-width:720px){
+    .scenario,.split,.vmeta{grid-template-columns:1fr}
+    .scenario .col+.col{border-left:none;border-top:1px solid var(--line)}
+    .vmeta{grid-template-columns:1fr 1fr}
+    .controls .toggle{margin-left:0}
+  }
+  @media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="wrap">
+  <span class="brand"><b>AMLOCARE</b> · Example ePI</span>
+  <span class="vtag">Batch variants · concept</span>
+  <a class="back" href="../sg-epi-pilot.html" target="_top">↩ ePI Pilot</a>
+</div></div>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="eyebrow">One product · two batch formulations</div>
+    <h1>Batch-specific ePI variants</h1>
+    <p>A marketed product has two batch formulations in circulation — a <b>white</b> tablet and a <b>red</b> tablet. Almost everything is identical, but they differ in the tablet's physical appearance, its film-coat colourant, and — because the red batch adds a colourant — a small <b>safety difference</b> too. Rather than duplicate a whole leaflet, we publish two ePI <b>variants</b> that share one common core and differ only where they genuinely differ.</p>
+  </div>
+
+  <div class="scenario">
+    <div class="col share"><div class="k">◆ Shared across both variants</div><p>Indication, dosing, contraindications, warnings, side effects, packaging, storage, active ingredient and marketing authorisation — <b>authored once</b>.</p></div>
+    <div class="col diff"><div class="k">◆ Specific to each batch</div><p>Tablet <b>colour, appearance and imprint</b>, the film-coat <b>colourant excipient</b> — and, because the red batch adds a colourant, a small <b>safety difference</b> (a colourant hypersensitivity note) plus the variant/batch identifier.</p></div>
+  </div>
+
+  <div class="controls">
+    <span class="lbl">View batch</span>
+    <div class="seg" role="group" aria-label="Select batch variant">
+      <button data-v="white" aria-pressed="true"><span class="dot"></span>Variant 1 · White</button>
+      <button data-v="red" aria-pressed="false"><span class="dot"></span>Variant 2 · Red</button>
+    </div>
+    <button class="toggle" id="diffToggle" aria-pressed="false">◆ Highlight what varies</button>
+  </div>
+
+  <div class="vmeta">
+    <div class="m"><div class="ml">Product</div><div class="mv">AMLOCARE 10 mg</div></div>
+    <div class="m varybadge"><div class="ml">Variant</div><div class="mv mono" id="mVariant">Variant 1 · White</div></div>
+    <div class="m varybadge"><div class="ml">ePI document id</div><div class="mv mono" id="mDocId">AMLO-SGP-0001/V1</div></div>
+    <div class="m varybadge"><div class="ml">Applies to batch</div><div class="mv mono" id="mBatch">WHT-24A</div></div>
+  </div>
+
+  <!-- LEAFLET -->
+  <div class="leaflet">
+    <div class="leaflet-head">
+      <div class="pn">AMLOCARE 10 mg film-coated tablets</div>
+      <div class="sub">amlodipine (as besilate) · Patient Information Leaflet — illustrative</div>
+    </div>
+
+    <div class="sec"><div class="sh"><h3>1 · What AMLOCARE is and what it is used for</h3><span class="badge common">Common</span></div>
+      <p>AMLOCARE contains amlodipine, which belongs to a group of medicines called calcium channel blockers. It is used to treat high blood pressure (hypertension) and a type of chest pain called angina.</p></div>
+
+    <div class="sec"><div class="sh"><h3>2 · Before you take AMLOCARE</h3><span class="badge common">Common</span></div>
+      <p>Do not take AMLOCARE if you are allergic to amlodipine or other calcium channel blockers (dihydropyridines), or if you have very low blood pressure, shock, or a narrowing of the aortic heart valve. Tell your doctor if you have heart failure or liver problems.</p></div>
+
+    <div class="sec"><div class="sh"><h3>3 · How to take AMLOCARE</h3><span class="badge common">Common</span></div>
+      <p>The usual dose is one 10 mg tablet once a day. Swallow the tablet with water, with or without food, at about the same time each day.</p></div>
+
+    <div class="sec varysec"><div class="sh"><h3>4 · Possible side effects</h3><span class="badge vary">Batch-specific</span></div>
+      <p class="common-inline"><b>Common to both variants:</b> swollen ankles (oedema), headache, dizziness, flushing, palpitations. Tell your doctor or pharmacist if any side effect becomes troublesome.</p>
+      <div class="vnote" id="safetyNote"><span class="vn-ic">⚠️</span><span id="safetyText"></span></div></div>
+
+    <div class="sec varysec"><div class="sh"><h3>5 · What AMLOCARE looks like</h3><span class="badge vary">Batch-specific</span></div>
+      <div class="appear">
+        <div class="tablet" id="tablet">A10</div>
+        <div class="adesc">
+          <p id="appearText" style="margin-bottom:4px;"></p>
+          <div class="kv">
+            <span class="item"><span class="il">Colour</span><span class="iv" id="kColour"></span></span>
+            <span class="item"><span class="il">Shape</span><span class="iv">Round, biconvex</span></span>
+            <span class="item"><span class="il">Imprint</span><span class="iv">“A10” / plain</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec varysec"><div class="sh"><h3>6 · Composition — film coating</h3><span class="badge vary">Batch-specific</span></div>
+      <p class="common-inline"><b>Active substance (both variants):</b> amlodipine (as besilate) 10 mg. Core excipients are identical across variants.</p>
+      <p style="margin-bottom:4px;">Film-coat ingredients for this variant:</p>
+      <div class="coat" id="coat"></div>
+    </div>
+
+    <div class="sec"><div class="sh"><h3>7 · Contents of the pack &amp; storage</h3><span class="badge common">Common</span></div>
+      <p>Packs of 30 film-coated tablets in blister strips. Store below 30&nbsp;°C. Keep out of the sight and reach of children. Marketing authorisation holder: ACME Pharma (Singapore) Pte Ltd — <i>illustrative</i>.</p></div>
+  </div>
+
+  <!-- HOW IT'S MODELLED -->
+  <div class="model">
+    <h2>How it's modelled in FHIR</h2>
+    <p class="lead">Each variant is a separate ePI document Bundle — but the two Bundles <b>reuse the same shared resources</b> and differ only in the formulation layer. This is the same pattern as the SmPC ↔ PIL split, applied to formulation instead of audience.</p>
+    <div class="split">
+      <div class="box share">
+        <div class="bh">◆ Shared resources — authored once, reused by both</div>
+        <ul>
+          <li><span class="rt">Composition</span><span>the leaflet spine (sections 1–4, 7) — <span class="d">indication, dosing, safety, pack</span></span></li>
+          <li><span class="rt">MedicinalProductDefinition</span><span>the product identity</span></li>
+          <li><span class="rt">Ingredient</span><span>active substance (amlodipine) + core excipients</span></li>
+          <li><span class="rt">ClinicalUseDefinition</span><span>indication, contraindications, common side effects</span></li>
+          <li><span class="rt">PackagedProductDefinition</span><span>the 30-tablet blister pack</span></li>
+          <li><span class="rt">Organization</span><span>marketing authorisation holder</span></li>
+        </ul>
+      </div>
+      <div class="box diff2">
+        <div class="bh">◆ Variant-specific — one small set per batch</div>
+        <ul>
+          <li><span class="rt">ManufacturedItemDefinition</span><span>the physical tablet — <span class="d">colour, shape, imprint</span></span></li>
+          <li><span class="rt">Ingredient</span><span>film-coat <span class="d">colourant</span> (titanium dioxide ± iron oxide red)</span></li>
+          <li><span class="rt">ClinicalUseDefinition</span><span>colourant hypersensitivity note — <span class="d">red variant only</span></span></li>
+          <li><span class="rt">Composition §4–6</span><span>appearance + variant-specific safety narrative</span></li>
+          <li><span class="rt">Bundle.identifier</span><span>variant / batch id (V1 white · V2 red)</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <b>The point:</b> a batch difference touches only a handful of resources — and those differences aren't limited to appearance. Here the red batch's added colourant also carries a small <b>safety</b> note, so the variant layer covers <b>formulation and its clinical consequences</b>. The shared core is written and maintained once, so the two leaflets can never drift out of sync — and a patient scanning their specific pack always sees the leaflet that matches the tablet in their hand.
+    </div>
+  </div>
+
+</div>
+
+<footer><div class="wrap"><p class="disc">Illustrative concept mockup for the Singapore HSA ePI pilot — not medical advice. AMLOCARE, ACME Pharma, batch numbers and variant identifiers are fictional and for demonstration only. Structure simplified to illustrate the batch-variant modelling approach.</p></div></footer>
+
+<script src="mockup-batch-variants.js"></script>
+</body>
+</html>

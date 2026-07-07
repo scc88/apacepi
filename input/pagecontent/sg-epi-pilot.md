@@ -134,6 +134,10 @@ This pilot and its reference materials are illustrative and under active develop
   <a href="examples/mockup-portfolio-query.html" target="_blank" rel="noopener">🔎 Portfolio surveillance queries</a>
   <a href="examples/mockup-conformance.html" target="_blank" rel="noopener">✅ Conformance dashboard</a>
 </div>
+<p style="font-size:.82em;font-weight:700;color:#003087;margin:0 0 6px;">ePI authoring &amp; lifecycle</p>
+<div class="link-row">
+  <a href="examples/mockup-batch-variants.html" target="_blank" rel="noopener">🎨 Batch-specific ePI variants</a>
+</div>
 
 <div class="section-title" id="sg-terminology">Singapore-specific terminology</div>
 <div class="placeholder">
