@@ -1,7 +1,7 @@
-id: hl7.fhir.uv.epi-asean
-canonical: http://hl7.org/fhir/uv/epi-asean
+id: hl7.fhir.uv.epi-apac
+canonical: http://hl7.org/fhir/uv/epi-apac
 name: APACePI
-title: "ePI Implementation Guide for the Asia Partnership Conference of Pharmaceutical Associations (APAC)"
+title: "ePI for the Asia Partnership Conference of Pharmaceutical Associations (APAC)"
 status: draft
 version: 0.1.0
 fhirVersion: 5.0.0

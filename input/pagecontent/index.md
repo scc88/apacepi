@@ -41,13 +41,15 @@
 
   <div class="section-title">Purpose</div>
   <p class="lead">To define a common standard for exchanging electronic medicinal product information (ePI) in Asia Pacific (APAC) countries.</p>
-  <p>We support the following:</p>
+  <p>ePI supports the following:</p>
   <ul>
-    <li>Common metadata resources</li>
-    <li>National HCP template (No exist)</li>
-    <li>National PIL template</li>
-    <li>Optional ASEAN SmPC template for HCP</li>
-    <li>Optional ASEAN PIL template</li>
+    <li>Common and/or national metadata resources</li>
+    <li>Common and/or national terminologies and code systems</li>
+    <li>National languages</li>
+    <li>National HCP templates (if available)</li>
+    <li>National PIL templates (if available)</li>
+    <li>ASEAN SmPC template (optional)</li>
+    <li>ASEAN PIL template (optional)</li>
   </ul>
 
   <div class="section-title">Goals</div>

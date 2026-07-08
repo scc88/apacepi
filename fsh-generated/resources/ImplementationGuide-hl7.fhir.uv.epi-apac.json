@@ -1,16 +1,16 @@
 {
   "resourceType": "ImplementationGuide",
-  "id": "hl7.fhir.uv.epi-asean",
+  "id": "hl7.fhir.uv.epi-apac",
   "extension": [
     {
       "url": "http://hl7.org/fhir/StructureDefinition/structuredefinition-wg",
       "valueCode": "brr"
     }
   ],
-  "url": "http://hl7.org/fhir/uv/epi-asean/ImplementationGuide/hl7.fhir.uv.epi-asean",
+  "url": "http://hl7.org/fhir/uv/epi-apac/ImplementationGuide/hl7.fhir.uv.epi-apac",
   "version": "0.1.0",
   "name": "APACePI",
-  "title": "ePI Implementation Guide for the Asia Partnership Conference of Pharmaceutical Associations (APAC)",
+  "title": "ePI for the Asia Partnership Conference of Pharmaceutical Associations (APAC)",
   "status": "draft",
   "publisher": "Asia Partnership Conference of Pharmaceutical Associations (APAC)",
   "contact": [
@@ -35,7 +35,7 @@
       ]
     }
   ],
-  "packageId": "hl7.fhir.uv.epi-asean",
+  "packageId": "hl7.fhir.uv.epi-apac",
   "fhirVersion": [
     "5.0.0"
   ],
@@ -57,7 +57,7 @@
         "description": "An example of a patient with a license to krill.",
         "isExample": true,
         "profile": [
-          "http://hl7.org/fhir/uv/epi-asean/StructureDefinition/MyPatient"
+          "http://hl7.org/fhir/uv/epi-apac/StructureDefinition/MyPatient"
         ]
       }
     ],
@@ -175,7 +175,7 @@
           "code": "path-history",
           "system": "http://hl7.org/fhir/tools/CodeSystem/ig-parameters"
         },
-        "value": "http://hl7.org/fhir/uv/epi-asean/history.html"
+        "value": "http://hl7.org/fhir/uv/epi-apac/history.html"
       }
     ]
   }
